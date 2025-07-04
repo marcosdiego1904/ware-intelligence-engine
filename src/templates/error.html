@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error - WIE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+</head>
+<body>
+    <main class="container">
+        <article>
+            <header>
+                <h2>Houston, tenemos un problema...</h2>
+            </header>
+            <p>Ocurrió un error al procesar tu solicitud. Esto puede deberse a:</p>
+            <ul>
+                <li>El archivo subido no es un formato Excel (.xlsx) válido.</li>
+                <li>Las columnas en el archivo no coinciden con el formato esperado.</li>
+                <li>El archivo está dañado o vacío.</li>
+            </ul>
+            <p><strong>Mensaje de error técnico:</strong> <code>{{ error_message }}</code></p>
+            <footer>
+                <a href="/" role="button">Intentar de Nuevo</a>
+            </footer>
+        </article>
+    </main>
+</body>
+</html>
