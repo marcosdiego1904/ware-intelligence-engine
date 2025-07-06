@@ -20,7 +20,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Usamos /tmp en un entorno serverless como Vercel, ya que es la única carpeta escribible.
 UPLOAD_FOLDER = '/tmp/uploads'
 # RULES_PATH es la ruta al archivo de reglas por defecto.
-RULES_PATH = os.path.join(SCRIPT_DIR, '..', 'data', 'warehouse_rules.xlsx')
+# En Vercel, los 'includeFiles' de vercel.json colocan la carpeta 'data' en la raíz.
+# Esta ruta busca el archivo desde la raíz del proyecto.
+RULES_PATH = os.path.join(os.path.dirname(SCRIPT_DIR), 'data', 'warehouse_rules.xlsx')
 
 # Nos aseguramos de que la carpeta de subidas exista.
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
