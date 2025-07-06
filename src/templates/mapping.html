@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mapeo de Datos - WIE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        .grid-mapping {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1rem 2rem;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <article>
+            <header>
+                <h2>Paso 2: Mapea tus Columnas</h2>
+                <p>Asocia las columnas de tu archivo con los campos que el motor necesita.</p>
+            </header>
+
+            <form method="post" action="{{ url_for('process_mapping') }}">
+                <div class="grid-mapping">
+                    <label for="pallet_id">ID del Pallet (pallet_id)</label>
+                    <select id="pallet_id" name="pallet_id" required>
+                        <option value="" disabled selected>Selecciona una columna...</option>
+                        {% for col in user_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="location">Ubicación (location)</label>
+                    <select id="location" name="location" required>
+                        <option value="" disabled selected>Selecciona una columna...</option>
+                        {% for col in user_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="creation_date">Fecha de Creación (creation_date)</label>
+                    <select id="creation_date" name="creation_date" required>
+                         <option value="" disabled selected>Selecciona una columna...</option>
+                        {% for col in user_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="receipt_number">Número de Recibo (receipt_number)</label>
+                    <select id="receipt_number" name="receipt_number" required>
+                         <option value="" disabled selected>Selecciona una columna...</option>
+                        {% for col in user_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+
+                     <label for="description">Descripción (description)</label>
+                    <select id="description" name="description" required>
+                         <option value="" disabled selected>Selecciona una columna...</option>
+                        {% for col in user_columns %}
+                        <option value="{{ col }}">{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    </div>
+
+                <footer>
+                    <button type="submit">Procesar Archivo</button>
+                </footer>
+            </form>
+        </article>
+    </main>
+</body>
+</html>

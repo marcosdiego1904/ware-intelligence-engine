@@ -1,88 +1,147 @@
 import os
-from flask import Flask, render_template, request
+import uuid
+from flask import Flask, render_template, request, session, redirect, url_for
 import pandas as pd
 from argparse import Namespace
 
-# Asumimos que tu motor está en 'engine.py' dentro de la misma carpeta 'src'
+# Asumimos que tu motor está en 'main.py' dentro de la misma carpeta 'src'
 from main import run_engine
 
 # --- Configuración de la Aplicación Flask ---
 app = Flask(__name__)
+# IMPORTANTE: Cambia esto por una clave secreta real y única en un entorno de producción.
+# Es necesario para que Flask pueda manejar sesiones de forma segura.
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 
 # --- Configuración de Rutas de Archivos ---
-# Esto hace que la aplicación sea robusta y encuentre siempre el archivo de reglas por defecto.
 # SCRIPT_DIR es la ruta a la carpeta actual ('src').
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# RULES_PATH es la ruta al archivo subiendo un nivel ('..') y entrando en 'data'.
+# UPLOAD_FOLDER es donde guardaremos temporalmente los archivos subidos.
+UPLOAD_FOLDER = os.path.join(SCRIPT_DIR, 'uploads')
+# RULES_PATH es la ruta al archivo de reglas por defecto.
 RULES_PATH = os.path.join(SCRIPT_DIR, '..', 'data', 'warehouse_rules.xlsx')
 
+# Nos aseguramos de que la carpeta de subidas exista.
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# --- Ruta Principal de la Aplicación ---
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """
-    Gestiona tanto la visualización inicial de la página (GET) como el
-    procesamiento de los archivos subidos (POST).
+    Paso 1: Gestiona la carga inicial del archivo de inventario.
+    Si es GET, muestra la página principal.
+    Si es POST, guarda el archivo, lee sus encabezados y redirige al mapeo.
     """
-    
-    # --- Lógica para cuando el usuario envía el formulario (POST) ---
     if request.method == 'POST':
-        # Obtiene los archivos del formulario de manera segura
         inventory_file = request.files.get('inventory_file')
-        rules_file = request.files.get('rules_file')
 
-        # Validación: Asegurarse de que el archivo principal fue enviado
-        if not inventory_file:
+        # Validación: Asegurarse de que el archivo de inventario fue enviado y tiene nombre.
+        if not inventory_file or not inventory_file.filename:
             error_msg = "No se subió el reporte de inventario, que es un archivo requerido."
             return render_template('error.html', error_message=error_msg), 400
 
         try:
-            # --- Carga de Archivos y Ejecución del Motor ---
-            
-            # Carga el DataFrame de inventario desde el archivo subido
-            inventory_df = pd.read_excel(inventory_file)
-            
-            # Lógica para el archivo de reglas: usa el subido o el de por defecto
-            if rules_file:
-                # Si el usuario proporcionó un archivo de reglas, úsalo
-                rules_df = pd.read_excel(rules_file)
-            else:
-                # Si no, carga el archivo de reglas por defecto del servidor
-                rules_df = pd.read_excel(RULES_PATH)
-            
-            # Crea un objeto 'args' con los valores por defecto para el motor.
-            args = Namespace(
-                debug=False,
-                floating_time=8,
-                straggler_ratio=0.85,
-                stuck_ratio=0.80,
-                stuck_time=6
-            )
-            # ¡Ejecuta el motor con los datos listos!
-            anomalies = run_engine(inventory_df, rules_df, args)
+            # Crea un nombre de archivo único para evitar sobreescribir archivos.
+            filename = str(uuid.uuid4()) + os.path.splitext(inventory_file.filename)[1]
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            inventory_file.save(filepath)
 
-            # Si todo va bien, muestra la página de resultados
-            return render_template('results.html', results=anomalies)
+            # Lee solo la primera fila (encabezados) para el mapeo.
+            df_headers = pd.read_excel(filepath, nrows=0)
+            user_columns = df_headers.columns.tolist()
+
+            # Guarda la ruta del archivo y los nombres de las columnas en la sesión del usuario.
+            session['inventory_filepath'] = filepath
+            session['user_columns'] = user_columns
+
+            # Redirige al usuario a la página de mapeo.
+            return redirect(url_for('mapping'))
 
         except Exception as e:
-            # --- Manejo de Errores ---
-            # Si cualquier cosa falla en el bloque 'try', se ejecuta esto.
-            # Imprime el error en la consola del servidor para tu propio registro
-            print(f"[ERROR] Ha ocurrido una excepción: {e}") 
-            
-            # Crea un mensaje de error amigable para el usuario
-            user_error_message = f"Error al procesar los archivos. Revisa que los formatos y las columnas sean correctos. (Detalle técnico: {type(e).__name__})"
-            
-            # Muestra la página de error
+            # Manejo de errores si el archivo no es un Excel válido u otro problema.
+            print(f"[ERROR] en la carga inicial: {e}")
+            user_error_message = f"Error al leer el archivo. Asegúrate de que sea un .xlsx válido. (Detalle: {type(e).__name__})"
             return render_template('error.html', error_message=user_error_message), 500
 
-    # --- Lógica para la primera visita a la página (GET) ---
-    # Si el método no es POST, simplemente muestra la página de carga de archivos.
+    # Si el método es GET, simplemente muestra la página de inicio.
     return render_template('index.html')
+
+
+@app.route('/mapping', methods=['GET'])
+def mapping():
+    """
+    Paso 2: Muestra la página de mapeo de columnas.
+    Recupera los nombres de las columnas del archivo del usuario desde la sesión
+    y los pasa a la plantilla para que se muestren en los menús desplegables.
+    """
+    # Si el usuario llega aquí sin haber subido un archivo, lo redirigimos al inicio.
+    if 'user_columns' not in session or 'inventory_filepath' not in session:
+        return redirect(url_for('index'))
+
+    user_columns = session['user_columns']
+    return render_template('mapping.html', user_columns=user_columns)
+
+
+@app.route('/process', methods=['POST'])
+def process_mapping():
+    """
+    Paso 3: Procesa el mapeo enviado por el usuario.
+    Carga el archivo completo, renombra las columnas según el mapeo,
+    ejecuta el motor de análisis y muestra los resultados.
+    """
+    try:
+        filepath = session.get('inventory_filepath')
+        # Validación: Comprueba que la ruta del archivo todavía existe en la sesión.
+        if not filepath or not os.path.exists(filepath):
+            error_msg = "La sesión ha expirado o el archivo original se ha perdido. Por favor, vuelve a empezar."
+            return render_template('error.html', error_message=error_msg), 400
+
+        # Crea el diccionario de mapeo a partir del formulario.
+        # El formulario envía {'pallet_id': 'Mi_Columna_ID', ...}
+        # Pandas necesita {'Mi_Columna_ID': 'pallet_id', ...}
+        # Por eso invertimos las claves y los valores.
+        column_mapping = {request.form[key]: key for key in request.form}
+
+        # Carga el DataFrame de inventario completo desde el archivo guardado.
+        inventory_df = pd.read_excel(filepath)
+        
+        # ¡La magia ocurre aquí! Renombra las columnas del DataFrame.
+        inventory_df.rename(columns=column_mapping, inplace=True)
+        
+        # Carga el archivo de reglas (usando el de por defecto).
+        rules_df = pd.read_excel(RULES_PATH)
+        
+        # Crea un objeto 'args' con los valores por defecto para el motor.
+        args = Namespace(
+            debug=False,
+            floating_time=8,
+            straggler_ratio=0.85,
+            stuck_ratio=0.80,
+            stuck_time=6
+        )
+        
+        # ¡Ejecuta el motor con los datos ya limpios y estandarizados!
+        anomalies = run_engine(inventory_df, rules_df, args)
+
+        # Muestra la página de resultados.
+        return render_template('results.html', results=anomalies)
+
+    except Exception as e:
+        # Manejo de errores durante el procesamiento.
+        print(f"[ERROR] durante el procesamiento del mapeo: {e}")
+        user_error_message = f"Ocurrió un error al procesar el archivo con el mapeo. (Detalle: {type(e).__name__})"
+        return render_template('error.html', error_message=user_error_message), 500
+    
+    finally:
+        # Limpieza: Pase lo que pase, intentamos eliminar el archivo temporal y limpiar la sesión.
+        filepath = session.pop('inventory_filepath', None)
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+        session.pop('user_columns', None)
 
 
 # --- Punto de Entrada para Ejecutar la Aplicación ---
 if __name__ == '__main__':
     # app.run() inicia el servidor de desarrollo de Flask.
-    # debug=True activa el modo de depuración para ver errores y recarga automática.
-    app.run(debug=True)
+    # debug=True activa el modo de depuración para ver errores detallados y recarga automática.
+    app.run(debug=True, port=5001)
