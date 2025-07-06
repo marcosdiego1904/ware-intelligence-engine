@@ -18,14 +18,11 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # UPLOAD_FOLDER es donde guardaremos temporalmente los archivos subidos.
 # Usamos /tmp en un entorno serverless como Vercel, ya que es la única carpeta escribible.
-UPLOAD_FOLDER = '/tmp/uploads'
+UPLOAD_FOLDER = '/tmp/wie_uploads'
 # RULES_PATH es la ruta al archivo de reglas por defecto.
-# En Vercel, los 'includeFiles' de vercel.json colocan la carpeta 'data' en la raíz.
-# Esta ruta ahora es relativa al script 'app.py' para mayor robustez.
-RULES_PATH = os.path.join(SCRIPT_DIR, '..', 'data', 'warehouse_rules.xlsx')
-
-# Nos aseguramos de que la carpeta de subidas exista.
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# La ruta ahora apunta a un archivo junto a app.py, lo que es mucho más robusto para Vercel.
+# ASEGÚRATE de mover 'warehouse_rules.xlsx' a la carpeta 'src'.
+RULES_PATH = os.path.join(SCRIPT_DIR, 'warehouse_rules.xlsx')
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -44,6 +41,9 @@ def index():
             return render_template('error.html', error_message=error_msg), 400
 
         try:
+            # Nos aseguramos de que la carpeta de subidas exista justo antes de usarla.
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
             # Crea un nombre de archivo único para evitar sobreescribir archivos.
             filename = str(uuid.uuid4()) + os.path.splitext(inventory_file.filename)[1]
             filepath = os.path.join(UPLOAD_FOLDER, filename)
