@@ -17,7 +17,8 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 # SCRIPT_DIR es la ruta a la carpeta actual ('src').
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # UPLOAD_FOLDER es donde guardaremos temporalmente los archivos subidos.
-UPLOAD_FOLDER = os.path.join(SCRIPT_DIR, 'uploads')
+# Usamos /tmp en un entorno serverless como Vercel, ya que es la única carpeta escribible.
+UPLOAD_FOLDER = '/tmp/uploads'
 # RULES_PATH es la ruta al archivo de reglas por defecto.
 RULES_PATH = os.path.join(SCRIPT_DIR, '..', 'data', 'warehouse_rules.xlsx')
 
