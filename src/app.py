@@ -19,10 +19,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # UPLOAD_FOLDER es donde guardaremos temporalmente los archivos subidos.
 # Usamos /tmp en un entorno serverless como Vercel, ya que es la única carpeta escribible.
 UPLOAD_FOLDER = '/tmp/wie_uploads'
-# RULES_PATH es la ruta al archivo de reglas por defecto.
-# La ruta ahora apunta a un archivo junto a app.py, lo que es mucho más robusto para Vercel.
-# ASEGÚRATE de mover 'warehouse_rules.xlsx' a la carpeta 'src'.
-RULES_PATH = os.path.join(SCRIPT_DIR, 'warehouse_rules.xlsx')
+# RULES_PATH es la ruta al archivo de reglas.
+# La configuración en 'vercel.json' ("includeFiles": ["data/**"]) asegura que la carpeta 'data'
+# esté disponible en la raíz del entorno de ejecución. Por lo tanto, usamos una ruta relativa directa.
+RULES_PATH = 'data/warehouse_rules.xlsx'
 
 
 @app.route('/', methods=['GET', 'POST'])
