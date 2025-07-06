@@ -109,6 +109,12 @@ def process_mapping():
         # ¡La magia ocurre aquí! Renombra las columnas del DataFrame.
         inventory_df.rename(columns=column_mapping, inplace=True)
         
+        # --- FIX: Convertir la columna de fecha a datetime ---
+        # Este es el paso crucial que faltaba. Sin esto, las operaciones
+        # de tiempo en el motor fallarán con un TypeError.
+        if 'creation_date' in inventory_df.columns:
+            inventory_df['creation_date'] = pd.to_datetime(inventory_df['creation_date'])
+        
         # Carga el archivo de reglas (usando el de por defecto).
         rules_df = pd.read_excel(RULES_PATH)
         
