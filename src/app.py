@@ -1,8 +1,12 @@
 import os
 import uuid
+import sys
 from flask import Flask, render_template, request, session, redirect, url_for
 import pandas as pd
 from argparse import Namespace
+
+# Añadir el directorio 'src' a la ruta de Python para resolver importaciones locales en Vercel.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Asumimos que tu motor está en 'main.py' dentro de la misma carpeta 'src'
 from main import run_engine
