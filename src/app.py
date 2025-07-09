@@ -6,6 +6,7 @@ from argparse import Namespace
 
 # Asumimos que tu motor está en 'main.py' dentro de la misma carpeta 'src'
 from main import run_engine
+from config import get_rules_path, get_upload_folder # Import from config
 
 # --- Configuración de la Aplicación Flask ---
 app = Flask(__name__)
@@ -18,12 +19,11 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # UPLOAD_FOLDER es donde guardaremos temporalmente los archivos subidos.
 # Usamos /tmp en un entorno serverless como Vercel, ya que es la única carpeta escribible.
-UPLOAD_FOLDER = '/tmp/wie_uploads'
+UPLOAD_FOLDER = get_upload_folder() # Use the function from config
 # RULES_PATH es la ruta al archivo de reglas.
 # La configuración en 'vercel.json' ("includeFiles": ["data/**"]) asegura que la carpeta 'data'
 # esté disponible en la raíz del entorno de ejecución. Por lo tanto, usamos una ruta relativa directa.
-RULES_PATH = 'data/warehouse_rules.xlsx'
-
+RULES_PATH = get_rules_path() # Use the function from config
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
