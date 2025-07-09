@@ -132,11 +132,13 @@ def process_mapping():
     finally:
         # Limpieza de archivos temporales y sesión
         for key in ['inventory_filepath', 'rules_filepath', 'user_columns']:
-            filepath = session.pop(key, None)
-            if filepath and filepath.startswith('/tmp/'):
+            item = session.pop(key, None)
+            # Asegurarse de que el item es una cadena (ruta de archivo) antes de intentar borrarlo
+            if isinstance(item, str) and item.startswith('/tmp/'):
                 try:
-                    os.remove(filepath)
+                    os.remove(item)
                 except OSError:
+                    # No hacer nada si el archivo no existe o hay otro error
                     pass
 
 # --- Punto de Entrada para Ejecutar la Aplicación ---
