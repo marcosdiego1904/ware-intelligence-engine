@@ -26,12 +26,12 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
+            padding: 2rem;
         }
 
         .container {
             max-width: 600px;
             width: 100%;
-            padding: 2rem;
         }
 
         .card {
@@ -175,7 +175,7 @@
             <form method="post" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="inventory_file">
-                        Informe de inventario
+                        Informe de inventario (Requerido)
                     </label>
                     <div class="file-drop-area">
                         <span class="file-msg">Arrastra y suelta un archivo o <span class="file-msg-highlight">búscalo en tu equipo</span>.</span>
@@ -185,7 +185,7 @@
                 
                 <div class="form-group is-secondary">
                     <label for="rules_file">
-                        Archivo de Reglas (opcional)
+                        Archivo de Reglas (Opcional, usará el default si no se sube)
                     </label>
                     <div class="file-drop-area">
                         <span class="file-msg">Sube el archivo de reglas o <span class="file-msg-highlight">búscalo en tu equipo</span>.</span>
