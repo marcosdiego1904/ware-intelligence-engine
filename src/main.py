@@ -137,12 +137,13 @@ def detect_stuck_in_transit_pallets(inventory_df, rules_df, lot_completion_thres
 def detect_incompatibility_and_overcapacity(inventory_df, rules_df, debug=False):
     """
     Detección 4: Encuentra pallets incompatibles y ubicaciones sobre-saturadas.
-    Ahora es insensible a mayúsculas/minúsculas.
+    Ahora es insensible a mayúsculas/minúsculas y robusto ante datos nulos.
     """
     anomalies = []
-    # Usamos una copia para no modificar el DataFrame original al convertir a mayúsculas.
-    temp_df = inventory_df.copy()
-    temp_df['location_upper'] = temp_df['location'].str.upper()
+    # Usamos una copia y nos aseguramos de que 'location' sea de tipo string,
+    # rellenando valores nulos para evitar errores con .str.upper()
+    temp_df = inventory_df.dropna(subset=['location']).copy()
+    temp_df['location_upper'] = temp_df['location'].astype(str).str.upper()
     
     location_counts = temp_df['location_upper'].value_counts().reset_index()
     location_counts.columns = ['location_upper', 'pallet_count']
@@ -154,7 +155,8 @@ def detect_incompatibility_and_overcapacity(inventory_df, rules_df, debug=False)
             if debug:
                 print(f"  [DEBUG D4-Cap] Ubicación '{loc_info['location_upper']}': Conteo={loc_info['pallet_count']}, Capacidad={rule['capacity']}")
             if loc_info['pallet_count'] > rule['capacity']:
-                pallets_in_loc = inventory_df[inventory_df['location'].str.upper() == loc_info['location_upper']]
+                # Filtramos el DataFrame original usando el mismo método seguro
+                pallets_in_loc = inventory_df[inventory_df['location'].astype(str).str.upper() == loc_info['location_upper']]
                 for _, pallet in pallets_in_loc.iterrows():
                     anomalies.append({
                         'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
@@ -162,12 +164,14 @@ def detect_incompatibility_and_overcapacity(inventory_df, rules_df, debug=False)
                         'details': f"La ubicación '{pallet['location']}' tiene {loc_info['pallet_count']} pallets pero su capacidad es {int(rule['capacity'])}."
                     })
 
-    for index, pallet in inventory_df.iterrows():
+    # Nos aseguramos de que tanto 'location' como 'description' no sean nulos para esta comprobación
+    for index, pallet in inventory_df.dropna(subset=['location', 'description']).iterrows():
         rule = get_rule_for_location(pallet['location'], rules_df)
-        if rule is not None and isinstance(pallet['description'], str):
-            # MEJORA: Comparamos todo en mayúsculas para ignorar el case.
-            allowed_desc = rule['allowed_description'].upper()
-            pallet_desc = pallet['description'].upper()
+        if rule is not None:
+            # Comparamos todo en mayúsculas para ignorar el case.
+            # Usamos .astype(str) para seguridad, aunque dropna ya debería haberlo manejado.
+            allowed_desc = str(rule['allowed_description']).upper()
+            pallet_desc = str(pallet['description']).upper()
             if debug:
                  print(f"  [DEBUG D4-Incomp] Pallet '{pallet['pallet_id']}': Desc='{pallet_desc}', Regla='{allowed_desc}'")
             if not fnmatch.fnmatch(pallet_desc, allowed_desc):
@@ -244,7 +248,7 @@ def display_report(anomalies):
     Muestra el reporte final de anomalías de una forma clara y legible.
     """
     print("\n\n" + "="*50)
-    print("🚨 REPORTE FINAL DE ANOMALÍAS (PRIORIZADO) �")
+    print("🚨 REPORTE FINAL DE ANOMALÍAS (PRIORIZADO) 🚨")
     print("="*50)
     
     if not anomalies:
