@@ -15,8 +15,10 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 # --- Configuración de Rutas de Archivos ---
 # En un entorno serverless, /tmp es la única carpeta escribible.
 UPLOAD_FOLDER = '/tmp/wie_uploads'
-# Esta es la ruta al archivo de reglas por defecto. Vercel lo incluirá.
-DEFAULT_RULES_PATH = 'data/warehouse_rules.xlsx'
+# Se construye una ruta robusta al archivo de reglas por defecto para evitar
+# problemas con el directorio de trabajo actual (CWD) en Vercel.
+_base_dir = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_RULES_PATH = os.path.abspath(os.path.join(_base_dir, '..', 'data', 'warehouse_rules.xlsx'))
 
 
 def get_safe_filepath(filename):
