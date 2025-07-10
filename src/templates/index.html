@@ -17,6 +17,11 @@
             --border-color: #e1e5ea;
             --border-radius: 12px;
             --success-color: #2ecc71;
+            --success-bg: #e8f9f1;
+            --success-border: #a3e9c4;
+            --error-color: #e74c3c;
+            --disabled-bg: #ecf0f1;
+            --disabled-text: #bdc3c7;
         }
 
         body {
@@ -29,6 +34,7 @@
             min-height: 100vh;
             margin: 0;
             padding: 3rem 1.5rem;
+            box-sizing: border-box;
         }
 
         .container {
@@ -48,6 +54,9 @@
         .logo {
             color: var(--accent-color);
             margin-bottom: 1rem;
+            width: 48px;
+            height: 48px;
+            display: inline-block;
         }
 
         h1 {
@@ -63,134 +72,55 @@
             font-size: 1.1rem;
         }
 
-        /* --- SAMPLE DATA SECTION --- */
-        .sample-data-section {
-            text-align: left;
-            margin-bottom: 3rem;
-            border-top: 1px solid var(--border-color);
-            padding-top: 2rem;
-        }
-
-        .sample-data-section .section-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--primary-text);
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-
-        .sample-files-container {
-            display: grid;
-            gap: 1.5rem;
-        }
-
-        .sample-file-card {
-            background-color: #fafbfc;
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            align-items: center;
-            gap: 1.5rem;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-
-        .sample-file-card:hover {
-            border-color: var(--accent-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-        }
-
-        .sample-file-icon svg {
-            width: 32px;
-            height: 32px;
-            color: var(--accent-color);
-        }
-
-        .sample-file-info {
-            text-align: left;
-        }
-        
-        .sample-file-name {
-            font-weight: 600;
-            font-size: 1rem;
-            margin: 0 0 0.25rem 0;
-        }
-
-        .sample-file-description {
-            font-size: 0.85rem;
-            color: var(--secondary-text);
-            margin: 0;
-        }
-        
-        .sample-file-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .btn-use-sample, .btn-download-sample {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 0.8rem;
-            border-radius: 8px;
-            padding: 0.6rem 1rem;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            border: 1px solid transparent;
-        }
-
-        .btn-use-sample {
-            background-color: var(--accent-color);
-            color: var(--white);
-            border-color: var(--accent-color);
-        }
-
-        .btn-use-sample:hover {
-            background-color: var(--accent-color-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
-        }
-        
-        .btn-download-sample {
-            background-color: transparent;
-            color: var(--primary-text);
-            text-decoration: none;
-            border-color: var(--border-color);
-        }
-
-        .btn-download-sample:hover {
-            background-color: #f0f2f5;
-            border-color: #cdd3da;
-        }
-        
-        /* --- END SAMPLE DATA SECTION --- */
-
         form {
             text-align: left;
-            border-top: 1px solid var(--border-color);
-            padding-top: 2rem;
         }
 
         .form-group + .form-group {
-            margin-top: 1.5rem;
+            margin-top: 2rem;
         }
 
         label {
             font-weight: 600;
             font-size: 1rem;
-            margin-bottom: 0.75rem;
-            display: block;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .label-tag {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .label-tag.required {
+            background-color: var(--success-bg);
+            color: var(--success-color);
+        }
+
+        .label-tag.optional {
+            background-color: #f2f3f4;
+            color: var(--secondary-text);
+        }
+        
+        .label-subtitle {
+            font-size: 0.85rem;
+            color: var(--secondary-text);
+            margin: -0.25rem 0 0.75rem 0;
         }
 
         .file-drop-area {
             position: relative;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             width: 100%;
-            padding: 2.5rem;
+            padding: 2rem;
             border: 2px dashed var(--border-color);
             border-radius: var(--border-radius);
             background-color: #fafbfc;
@@ -199,18 +129,19 @@
             box-sizing: border-box;
         }
 
-        .form-group.is-secondary .file-drop-area {
-            padding: 1.5rem;
-        }
-
-        .form-group.is-secondary .file-msg {
-            font-size: 0.85rem;
-        }
-
         .file-drop-area:hover,
         .file-drop-area.is-dragover {
             border-color: var(--accent-color);
             background-color: var(--white);
+        }
+        
+        .file-drop-area.is-selected {
+            border-color: var(--success-border);
+            background-color: var(--success-bg);
+        }
+        
+        .file-drop-area.is-selected .file-msg-highlight {
+            color: var(--success-color);
         }
 
         .file-drop-area input[type="file"] {
@@ -226,6 +157,16 @@
         .file-msg {
             color: var(--secondary-text);
             font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .file-icon {
+            color: var(--accent-color);
+            margin-bottom: 0.75rem;
+        }
+        
+        .file-icon.success {
+             color: var(--success-color);
         }
 
         .file-msg-highlight {
@@ -233,8 +174,50 @@
             font-weight: 600;
         }
 
-        button[type="submit"] {
-            background: linear-gradient(45deg, #3498db, #2980b9);
+        .sample-options {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .sample-options-divider {
+            font-size: 0.8rem;
+            color: var(--secondary-text);
+            font-weight: 500;
+        }
+        
+        .btn-link {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+        }
+        
+        .btn-use-sample {
+            color: var(--accent-color);
+        }
+        .btn-use-sample:hover {
+            text-decoration: underline;
+        }
+
+        .btn-download-sample {
+            color: var(--primary-text);
+            text-decoration: none;
+        }
+        .btn-download-sample:hover {
+            text-decoration: underline;
+        }
+        
+        #analyze-btn {
+            background: linear-gradient(45deg, var(--accent-color), var(--accent-color-dark));
             color: var(--white);
             border: none;
             border-radius: var(--border-radius);
@@ -243,169 +226,195 @@
             font-weight: 600;
             width: 100%;
             cursor: pointer;
-            margin-top: 2rem;
-            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 2.5rem;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
             text-transform: uppercase;
             letter-spacing: 1px;
             box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
         }
 
-        button[type="submit"]:hover {
-            transform: translateY(-3px);
+        #analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
+        }
+        
+        #analyze-btn:disabled {
+            background: var(--disabled-bg);
+            color: var(--disabled-text);
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
     </style>
 </head>
 <body>
-    <main class="container">
-        <article class="card">
-            <header>
-                <div class="logo">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2.5 17a2.4 2.4 0 0 1 3 0L8 20l4-4-4-4 2.5-2.5a2.4 2.4 0 0 1 3 0L16 12l4-4-1.5-1.5a2.4 2.4 0 0 1 0-3L21 1l-3 3-4 4-2.5 2.5a2.4 2.4 0 0 1-3 0L6 8l-4 4 1.5 1.5a2.4 2.4 0 0 1 0 3L1 20l3-3 4-4Z"/>
-                    </svg>
-                </div>
-                <h1>Warehouse<br>Intelligence Engine</h1>
-                <p class="subtitle">Analyze and optimize your inventory with the power of AI.</p>
-            </header>
+    <div class="container">
+        <div class="card">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+                </svg>
+            </div>
+            <h1>Warehouse Intelligence Engine</h1>
+            <p class="subtitle">Analyze and optimize your inventory with the power of AI.</p>
             
-            <section class="sample-data-section">
-                <p class="section-title">Don't have files? Start with our sample data.</p>
-                <div class="sample-files-container">
-                    <!-- Sample Inventory Card -->
-                    <div class="sample-file-card">
-                        <span class="sample-file-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        </span>
-                        <div class="sample-file-info">
-                            <h3 class="sample-file-name">Inventory Report</h3>
-                            <p class="sample-file-description">An example .xlsx file with products, quantities, and creation dates.</p>
-                        </div>
-                        <div class="sample-file-actions">
-                            <button type="button" class="btn-use-sample" data-target-input="inventory_file" data-url="/download_sample/inventory_report3.xlsx" data-filename="inventory_report3.xlsx">Use for analysis</button>
-                            <a href="/download_sample/inventory_report3.xlsx" download="inventory_report3.xlsx" class="btn-download-sample">Download and view</a>
-                        </div>
-                    </div>
-                    <!-- Sample Rules Card -->
-                    <div class="sample-file-card">
-                        <span class="sample-file-icon">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.3 10.7 18 9.7 18 8.5c0-1.4-1.1-2.5-2.5-2.5S13 7.1 13 8.5c0 .4.1.8.4 1.2"></path><path d="M14 14v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M14 4h4a2 2 0 0 1 2 2v2"></path><path d="M4 14h10"></path><path d="M4 18h10"></path><path d="M4 6h4"></path><path d="M4 10h4"></path></svg>
-                        </span>
-                        <div class="sample-file-info">
-                            <h3 class="sample-file-name">Rules File</h3>
-                            <p class="sample-file-description">Defines the conditions and thresholds for inventory anomaly analysis.</p>
-                        </div>
-                        <div class="sample-file-actions">
-                            <button type="button" class="btn-use-sample" data-target-input="rules_file" data-url="/download_sample/warehouse_rules.xlsx" data-filename="warehouse_rules.xlsx">Use for analysis</button>
-                            <a href="/download_sample/warehouse_rules.xlsx" download="warehouse_rules.xlsx" class="btn-download-sample">Download and view</a>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <form id="upload-form" action="/analyze" method="post" enctype="multipart/form-data">
 
-            <form method="post" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="inventory_file">
-                        Inventory Report (Required)
+                    <label for="inventory-file">
+                        Inventory Report
+                        <span class="label-tag required">Required</span>
                     </label>
-                    <div class="file-drop-area">
-                        <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer</span>.</span>
-                        <input type="file" id="inventory_file" name="inventory_file" required>
+                    <div class="file-drop-area" id="inventory-drop-area">
+                        <input type="file" id="inventory-file" name="inventory_file" accept=".xlsx">
+                        <div class="file-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM2 2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+                            </svg>
+                        </div>
+                        <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer.</span></span>
+                    </div>
+                    <div class="sample-options">
+                        <span>Don't have a file?</span>
+                        <button type="button" class="btn-link btn-use-sample" data-type="inventory">Use sample report</button>
+                        <a href="/download/inventory_report.xlsx" class="btn-link btn-download-sample" download>Download</a>
                     </div>
                 </div>
 
-                <div class="form-group is-secondary">
-                    <label for="rules_file">
-                        Rules File (Optional, will use default if not uploaded)
+                <div class="form-group">
+                    <label for="rules-file">
+                        Rules File
+                        <span class="label-tag optional">Optional</span>
                     </label>
-                    <div class="file-drop-area">
-                        <span class="file-msg">Upload the rules file or <span class="file-msg-highlight">browse your computer</span>.</span>
-                        <input type="file" id="rules_file" name="rules_file">
+                    <p class="label-subtitle">Will use default settings if not uploaded.</p>
+                    <div class="file-drop-area" id="rules-drop-area">
+                        <input type="file" id="rules-file" name="rules_file" accept=".xlsx">
+                         <div class="file-icon">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-2 1h10v1H2v-1zm1-4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1H3zm11 1a.5.5 0 0 0-1 0v1a.5.5 0 0 0 1 0V5z"/>
+                                <path fill-rule="evenodd" d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM3 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H3z"/>
+                            </svg>
+                        </div>
+                        <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer.</span></span>
+                    </div>
+                    <div class="sample-options">
+                        <button type="button" class="btn-link btn-use-sample" data-type="rules">Use sample rules</button>
+                        <a href="/download/warehouse_rules.xlsx" class="btn-link btn-download-sample" download>Download</a>
                     </div>
                 </div>
 
-                <button type="submit">Analyze</button>
+                <input type="hidden" name="use_sample_inventory" id="use_sample_inventory" value="false">
+                <input type="hidden" name="use_sample_rules" id="use_sample_rules" value="false">
+                
+                <button type="submit" id="analyze-btn" disabled>Analyze</button>
             </form>
-        </article>
-    </main>
-    <script>
-        // Store original messages for each file input to restore them later.
-        const originalMessages = {
-            inventory_file: document.querySelector('#inventory_file').parentElement.querySelector('.file-msg').innerHTML,
-            rules_file: document.querySelector('#rules_file').parentElement.querySelector('.file-msg').innerHTML
-        };
+        </div>
+    </div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const uploadForm = document.getElementById('upload-form');
+    const analyzeBtn = document.getElementById('analyze-btn');
 
-        // --- USE SAMPLE FILE BUTTONS ---
-        document.querySelectorAll('.btn-use-sample').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const targetInputId = e.currentTarget.dataset.targetInput;
-                const fileUrl = e.currentTarget.dataset.url;
-                const filename = e.currentTarget.dataset.filename;
-                const fileInput = document.getElementById(targetInputId);
-                const dropArea = fileInput.closest('.file-drop-area');
-                const fileMsg = dropArea.querySelector('.file-msg');
+    const inventoryDropArea = document.getElementById('inventory-drop-area');
+    const inventoryFileInput = document.getElementById('inventory-file');
+    const useSampleInventoryBtn = document.querySelector('.btn-use-sample[data-type="inventory"]');
+    const useSampleInventoryHidden = document.getElementById('use_sample_inventory');
 
-                if (!fileInput) return;
+    const rulesDropArea = document.getElementById('rules-drop-area');
+    const rulesFileInput = document.getElementById('rules-file');
+    const useSampleRulesBtn = document.querySelector('.btn-use-sample[data-type="rules"]');
+    const useSampleRulesHidden = document.getElementById('use_sample_rules');
 
-                fileMsg.innerHTML = `Loading <span style="font-weight: 600;">${filename}</span>...`;
-                dropArea.classList.add('is-dragover');
+    let isInventorySelected = false;
 
-                fetch(fileUrl, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                    .then(res => {
-                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                        return res.blob();
-                    })
-                    .then(blob => {
-                        const file = new File([blob], filename, { type: blob.type });
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(file);
-                        fileInput.files = dataTransfer.files;
-                        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    })
-                    .catch(err => {
-                        console.error('Error fetching sample file:', err);
-                        fileMsg.innerHTML = 'Error loading file.';
-                        setTimeout(() => {
-                           fileMsg.innerHTML = originalMessages[targetInputId];
-                        }, 3000);
-                    })
-                    .finally(() => {
-                        dropArea.classList.remove('is-dragover');
-                    });
-            });
-        });
+    function updateButtonState() {
+        analyzeBtn.disabled = !isInventorySelected;
+    }
 
-        // --- DRAG AND DROP FOR FILE INPUTS FROM USER'S FILESYSTEM ---
-        document.querySelectorAll('.file-drop-area').forEach(dropArea => {
-            const fileInput = dropArea.querySelector('input[type="file"]');
-            const fileMsg = dropArea.querySelector('.file-msg');
+    function handleFileSelection(dropArea, fileInput, file, isSample) {
+        const fileMsg = dropArea.querySelector('.file-msg');
+        const icon = dropArea.querySelector('.file-icon');
+        
+        dropArea.classList.add('is-selected');
+        icon.classList.add('success');
+        
+        if (isSample) {
+            fileMsg.innerHTML = `Using <span class="file-msg-highlight">Sample ${file} File</span>`;
+        } else {
+            fileMsg.innerHTML = `File selected: <span class="file-msg-highlight">${file.name}</span>`;
+        }
+        
+        if (dropArea.id.includes('inventory')) {
+            isInventorySelected = true;
+        }
+        updateButtonState();
+    }
 
-            fileInput.addEventListener('change', () => {
-                const files = fileInput.files;
-                if (files && files.length > 0) {
-                    fileMsg.innerHTML = `File: <span style="font-weight: 600;">${files[0].name}</span>`;
-                } else {
-                    fileMsg.innerHTML = originalMessages[fileInput.id];
-                }
-            });
+    // --- Inventory Logic ---
+    useSampleInventoryBtn.addEventListener('click', () => {
+        useSampleInventoryHidden.value = 'true';
+        inventoryFileInput.value = ''; // Clear file input
+        inventoryFileInput.required = false;
+        handleFileSelection(inventoryDropArea, inventoryFileInput, 'Inventory', true);
+    });
 
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, (ev) => {ev.preventDefault(); ev.stopPropagation();}, false));
-            ['dragenter', 'dragover'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.add('is-dragover'), false));
-            ['dragleave', 'drop'].forEach(e => dropArea.addEventListener(e, () => dropArea.classList.remove('is-dragover'), false));
+    inventoryFileInput.addEventListener('change', () => {
+        if (inventoryFileInput.files.length > 0) {
+            useSampleInventoryHidden.value = 'false';
+            inventoryFileInput.required = true;
+            handleFileSelection(inventoryDropArea, inventoryFileInput, inventoryFileInput.files[0], false);
+        }
+    });
 
-            dropArea.addEventListener('drop', (e) => {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+    // --- Rules Logic ---
+    useSampleRulesBtn.addEventListener('click', () => {
+        useSampleRulesHidden.value = 'true';
+        rulesFileInput.value = ''; // Clear file input
+        handleFileSelection(rulesDropArea, rulesFileInput, 'Rules', true);
+    });
+
+    rulesFileInput.addEventListener('change', () => {
+        if (rulesFileInput.files.length > 0) {
+            useSampleRulesHidden.value = 'false';
+            handleFileSelection(rulesDropArea, rulesFileInput, rulesFileInput.files[0], false);
+        }
+    });
+    
+    // --- Drag and Drop visual feedback ---
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        [inventoryDropArea, rulesDropArea].forEach(area => {
+            area.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
             }, false);
         });
-    </script>
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        [inventoryDropArea, rulesDropArea].forEach(area => {
+            area.addEventListener(eventName, () => area.classList.add('is-dragover'), false);
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        [inventoryDropArea, rulesDropArea].forEach(area => {
+            area.addEventListener(eventName, () => area.classList.remove('is-dragover'), false);
+        });
+    });
+
+    inventoryDropArea.addEventListener('drop', e => {
+        inventoryFileInput.files = e.dataTransfer.files;
+        inventoryFileInput.dispatchEvent(new Event('change'));
+    });
+    
+    rulesDropArea.addEventListener('drop', e => {
+        rulesFileInput.files = e.dataTransfer.files;
+        rulesFileInput.dispatchEvent(new Event('change'));
+    });
+
+    updateButtonState();
+});
+</script>
 </body>
 </html>

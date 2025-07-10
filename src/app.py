@@ -27,6 +27,7 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 # Use the system's temporary directory for uploaded files.
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'wie_uploads')
 DEFAULT_RULES_PATH = os.path.join(_data_folder, 'warehouse_rules.xlsx')
+DEFAULT_INVENTORY_PATH = os.path.join(_data_folder, 'inventory_report.xlsx')
 
 
 def get_safe_filepath(filename):
@@ -36,42 +37,53 @@ def get_safe_filepath(filename):
     return os.path.join(UPLOAD_FOLDER, f"{safe_uuid}{extension}")
 
 
-@app.route('/download_sample/<filename>')
-def download_sample(filename):
+@app.route('/download/<filename>')
+def download(filename):
     """ Serves the sample files from the designated data folder. """
-    # The header for AJAX requests is added so that the script can read the file.
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    return send_from_directory(_data_folder, filename, as_attachment=not is_ajax)
+    return send_from_directory(_data_folder, filename, as_attachment=True)
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """
-    Step 1: Manages file uploads.
+    Step 1: Manages file uploads or selection of sample data.
     """
     if request.method == 'POST':
-        inventory_file = request.files.get('inventory_file')
-        rules_file = request.files.get('rules_file') # Optional rules file
+        # Cleanup any previous session data to ensure a fresh start
+        session.clear()
 
-        if not inventory_file or not inventory_file.filename:
-            return render_template('error.html', error_message="The inventory report is a required file."), 400
+        use_sample_inventory = request.form.get('use_sample_inventory') == 'true'
+        use_sample_rules = request.form.get('use_sample_rules') == 'true'
+
+        inventory_file = request.files.get('inventory_file')
+        rules_file = request.files.get('rules_file')
+
+        inventory_filepath = None
+        rules_filepath = None
 
         try:
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-            # Save the inventory file (required)
-            inventory_filepath = get_safe_filepath(inventory_file.filename)
-            inventory_file.save(inventory_filepath)
-            session['inventory_filepath'] = inventory_filepath
+            # Determine inventory file path
+            if use_sample_inventory:
+                inventory_filepath = DEFAULT_INVENTORY_PATH
+            elif inventory_file and inventory_file.filename:
+                inventory_filepath = get_safe_filepath(inventory_file.filename)
+                inventory_file.save(inventory_filepath)
+            else:
+                return render_template('error.html', error_message="The inventory report is a required file."), 400
 
-            # Save the rules file (optional)
-            if rules_file and rules_file.filename:
+            # Determine rules file path
+            if use_sample_rules:
+                rules_filepath = DEFAULT_RULES_PATH
+            elif rules_file and rules_file.filename:
                 rules_filepath = get_safe_filepath(rules_file.filename)
                 rules_file.save(rules_filepath)
-                session['rules_filepath'] = rules_filepath
             else:
-                # If not uploaded, we use the path to the default file
-                session['rules_filepath'] = DEFAULT_RULES_PATH
+                rules_filepath = DEFAULT_RULES_PATH # Default if none provided/selected
+
+            session['inventory_filepath'] = inventory_filepath
+            session['rules_filepath'] = rules_filepath
 
             df_headers = pd.read_excel(inventory_filepath, nrows=0)
             session['user_columns'] = df_headers.columns.tolist()
