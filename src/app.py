@@ -1,7 +1,8 @@
 import os
 import uuid
 import sys
-from flask import Flask, render_template, request, session, redirect, url_for
+import tempfile
+from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory
 import pandas as pd
 from argparse import Namespace
 
@@ -12,17 +13,20 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from main import run_engine
 
 # --- Configuración de la Aplicación Flask ---
-app = Flask(__name__)
+# Configuración de rutas robusta y multiplataforma.
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+_template_folder = os.path.join(_project_root, 'src', 'templates')
+_data_folder = os.path.join(_project_root, 'data')
+
+app = Flask(__name__, template_folder=_template_folder)
+
 # IMPORTANTE: Cambia esto por una clave secreta real y única en un entorno de producción.
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 
 # --- Configuración de Rutas de Archivos ---
-# En un entorno serverless, /tmp es la única carpeta escribible.
-UPLOAD_FOLDER = '/tmp/wie_uploads'
-# Se construye una ruta robusta al archivo de reglas por defecto para evitar
-# problemas con el directorio de trabajo actual (CWD) en Vercel.
-_base_dir = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_RULES_PATH = os.path.abspath(os.path.join(_base_dir, '..', 'data', 'warehouse_rules.xlsx'))
+# Usar el directorio temporal del sistema para los archivos subidos.
+UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'wie_uploads')
+DEFAULT_RULES_PATH = os.path.join(_data_folder, 'warehouse_rules.xlsx')
 
 
 def get_safe_filepath(filename):
@@ -30,6 +34,14 @@ def get_safe_filepath(filename):
     safe_uuid = str(uuid.uuid4())
     _, extension = os.path.splitext(filename)
     return os.path.join(UPLOAD_FOLDER, f"{safe_uuid}{extension}")
+
+
+@app.route('/download_sample/<filename>')
+def download_sample(filename):
+    """ Sirve los archivos de muestra desde la carpeta de datos designada. """
+    # Se añade la cabecera para peticiones AJAX para que el script pueda leer el archivo.
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    return send_from_directory(_data_folder, filename, as_attachment=not is_ajax)
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -133,8 +145,8 @@ def process_mapping():
         # Limpieza de archivos temporales y sesión
         for key in ['inventory_filepath', 'rules_filepath', 'user_columns']:
             item = session.pop(key, None)
-            # Asegurarse de que el item es una cadena (ruta de archivo) antes de intentar borrarlo
-            if isinstance(item, str) and item.startswith('/tmp/'):
+            # Asegurarse de que el item es una ruta de archivo y que existe antes de intentar borrarlo.
+            if isinstance(item, str) and item.startswith(UPLOAD_FOLDER) and os.path.exists(item):
                 try:
                     os.remove(item)
                 except OSError:
