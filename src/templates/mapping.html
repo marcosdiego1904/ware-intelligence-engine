@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapeo de Columnas - WIE</title>
+    <title>Column Mapping - WIE</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -134,53 +134,53 @@
                         <path d="M2.5 17a2.4 2.4 0 0 1 3 0L8 20l4-4-4-4 2.5-2.5a2.4 2.4 0 0 1 3 0L16 12l4-4-1.5-1.5a2.4 2.4 0 0 1 0-3L21 1l-3 3-4 4-2.5 2.5a2.4 2.4 0 0 1-3 0L6 8l-4 4 1.5 1.5a2.4 2.4 0 0 1 0 3L1 20l3-3 4-4Z"/>
                     </svg>
                 </div>
-                <h1>Mapeo de Columnas</h1>
-                <p class="subtitle">Asocia las columnas de tu archivo con los campos requeridos por el sistema.</p>
+                <h1>Column Mapping</h1>
+                <p class="subtitle">Match the columns from your file with the fields required by the system.</p>
             </header>
 
             <form method="post" action="{{ url_for('process_mapping') }}">
                 <div class="mapping-grid">
-                    <label for="pallet_id">ID del Pallet</label>
+                    <label for="pallet_id">Pallet ID</label>
                     <select id="pallet_id" name="pallet_id" required>
-                        <option value="" disabled selected>Selecciona una columna</option>
+                        <option value="" disabled selected>Select a column</option>
                         {% for col in user_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                         {% endfor %}
                     </select>
 
-                    <label for="location">Ubicación</label>
+                    <label for="location">Location</label>
                     <select id="location" name="location" required>
-                        <option value="" disabled selected>Selecciona una columna</option>
+                        <option value="" disabled selected>Select a column</option>
                         {% for col in user_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                         {% endfor %}
                     </select>
 
-                    <label for="creation_date">Fecha de Creación</label>
+                    <label for="creation_date">Creation Date</label>
                     <select id="creation_date" name="creation_date" required>
-                         <option value="" disabled selected>Selecciona una columna</option>
+                         <option value="" disabled selected>Select a column</option>
                         {% for col in user_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                         {% endfor %}
                     </select>
 
-                    <label for="receipt_number">Número de Recibo</label>
+                    <label for="receipt_number">Receipt Number</label>
                     <select id="receipt_number" name="receipt_number" required>
-                         <option value="" disabled selected>Selecciona una columna</option>
+                         <option value="" disabled selected>Select a column</option>
                         {% for col in user_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                         {% endfor %}
                     </select>
 
-                     <label for="description">Descripción</label>
+                     <label for="description">Description</label>
                     <select id="description" name="description" required>
-                         <option value="" disabled selected>Selecciona una columna</option>
+                         <option value="" disabled selected>Select a column</option>
                         {% for col in user_columns %}
                         <option value="{{ col }}">{{ col }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit">Procesar Archivo</button>
+                <button type="submit">Process File</button>
             </form>
         </article>
     </main>

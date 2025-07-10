@@ -6,31 +6,31 @@ from flask import Flask, render_template, request, session, redirect, url_for, s
 import pandas as pd
 from argparse import Namespace
 
-# Añadir el directorio 'src' a la ruta de Python para resolver importaciones locales en Vercel.
+# Add the 'src' directory to the Python path to resolve local imports in Vercel.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Asumimos que tu motor está en 'main.py' dentro de la misma carpeta 'src'
+# We assume your engine is in 'main.py' inside the same 'src' folder
 from main import run_engine
 
-# --- Configuración de la Aplicación Flask ---
-# Configuración de rutas robusta y multiplataforma.
+# --- Flask Application Configuration ---
+# Robust and cross-platform path configuration.
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 _template_folder = os.path.join(_project_root, 'src', 'templates')
 _data_folder = os.path.join(_project_root, 'data')
 
 app = Flask(__name__, template_folder=_template_folder)
 
-# IMPORTANTE: Cambia esto por una clave secreta real y única en un entorno de producción.
+# IMPORTANT: Change this to a real and unique secret key in a production environment.
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
 
-# --- Configuración de Rutas de Archivos ---
-# Usar el directorio temporal del sistema para los archivos subidos.
+# --- File Path Configuration ---
+# Use the system's temporary directory for uploaded files.
 UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'wie_uploads')
 DEFAULT_RULES_PATH = os.path.join(_data_folder, 'warehouse_rules.xlsx')
 
 
 def get_safe_filepath(filename):
-    """Crea un nombre de archivo único para evitar colisiones."""
+    """Creates a unique filename to avoid collisions."""
     safe_uuid = str(uuid.uuid4())
     _, extension = os.path.splitext(filename)
     return os.path.join(UPLOAD_FOLDER, f"{safe_uuid}{extension}")
@@ -38,8 +38,8 @@ def get_safe_filepath(filename):
 
 @app.route('/download_sample/<filename>')
 def download_sample(filename):
-    """ Sirve los archivos de muestra desde la carpeta de datos designada. """
-    # Se añade la cabecera para peticiones AJAX para que el script pueda leer el archivo.
+    """ Serves the sample files from the designated data folder. """
+    # The header for AJAX requests is added so that the script can read the file.
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     return send_from_directory(_data_folder, filename, as_attachment=not is_ajax)
 
@@ -47,30 +47,30 @@ def download_sample(filename):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     """
-    Paso 1: Gestiona la carga de archivos.
+    Step 1: Manages file uploads.
     """
     if request.method == 'POST':
         inventory_file = request.files.get('inventory_file')
-        rules_file = request.files.get('rules_file') # Archivo de reglas opcional
+        rules_file = request.files.get('rules_file') # Optional rules file
 
         if not inventory_file or not inventory_file.filename:
-            return render_template('error.html', error_message="El reporte de inventario es un archivo requerido."), 400
+            return render_template('error.html', error_message="The inventory report is a required file."), 400
 
         try:
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-            # Guardar el archivo de inventario (requerido)
+            # Save the inventory file (required)
             inventory_filepath = get_safe_filepath(inventory_file.filename)
             inventory_file.save(inventory_filepath)
             session['inventory_filepath'] = inventory_filepath
 
-            # Guardar el archivo de reglas (opcional)
+            # Save the rules file (optional)
             if rules_file and rules_file.filename:
                 rules_filepath = get_safe_filepath(rules_file.filename)
                 rules_file.save(rules_filepath)
                 session['rules_filepath'] = rules_filepath
             else:
-                # Si no se sube, usamos la ruta al archivo por defecto
+                # If not uploaded, we use the path to the default file
                 session['rules_filepath'] = DEFAULT_RULES_PATH
 
             df_headers = pd.read_excel(inventory_filepath, nrows=0)
@@ -79,8 +79,8 @@ def index():
             return redirect(url_for('mapping'))
 
         except Exception as e:
-            print(f"[ERROR] en la carga de archivos: {e}")
-            error_msg = f"Error al procesar el archivo. Asegúrate de que sea un .xlsx válido. (Detalle: {type(e).__name__})"
+            print(f"[ERROR] at file upload: {e}")
+            error_msg = f"Error processing file. Make sure it is a valid .xlsx file. (Detail: {type(e).__name__})"
             return render_template('error.html', error_message=error_msg), 500
 
     return render_template('index.html')
@@ -89,7 +89,7 @@ def index():
 @app.route('/mapping', methods=['GET'])
 def mapping():
     """
-    Paso 2: Muestra la página de mapeo de columnas.
+    Step 2: Displays the column mapping page.
     """
     if 'user_columns' not in session or 'inventory_filepath' not in session:
         return redirect(url_for('index'))
@@ -101,29 +101,29 @@ def mapping():
 @app.route('/process', methods=['POST'])
 def process_mapping():
     """
-    Paso 3: Procesa el mapeo, ejecuta el motor y muestra los resultados.
+    Step 3: Processes the mapping, runs the engine, and displays the results.
     """
     try:
         inventory_path = session.get('inventory_filepath')
-        rules_path = session.get('rules_filepath') # Obtener la ruta de las reglas
+        rules_path = session.get('rules_filepath') # Get the path of the rules
 
         if not all([inventory_path, rules_path]):
-            return render_template('error.html', error_message="La sesión expiró. Por favor, vuelve a empezar."), 400
+            return render_template('error.html', error_message="Session expired. Please start over."), 400
 
-        # Crear el diccionario para renombrar columnas
+        # Create the dictionary to rename columns
         column_mapping = {request.form[key]: key for key in request.form}
 
-        # Cargar DataFrames
+        # Load DataFrames
         inventory_df = pd.read_excel(inventory_path)
         inventory_df.rename(columns=column_mapping, inplace=True)
         
-        # Asegurar que la columna de fecha es del tipo correcto
+        # Ensure the date column is of the correct type
         if 'creation_date' in inventory_df.columns:
             inventory_df['creation_date'] = pd.to_datetime(inventory_df['creation_date'])
         
         rules_df = pd.read_excel(rules_path)
         
-        # Configurar argumentos para el motor
+        # Configure arguments for the engine
         args = Namespace(
             debug=False,
             floating_time=8,
@@ -137,22 +137,22 @@ def process_mapping():
         return render_template('results.html', results=anomalies)
 
     except Exception as e:
-        print(f"[ERROR] durante el procesamiento: {e}")
-        error_msg = f"Ocurrió un error al analizar los datos. (Detalle: {type(e).__name__})"
+        print(f"[ERROR] during processing: {e}")
+        error_msg = f"An error occurred while analyzing the data. (Detail: {type(e).__name__})"
         return render_template('error.html', error_message=error_msg), 500
     
     finally:
-        # Limpieza de archivos temporales y sesión
+        # Cleanup of temporary files and session
         for key in ['inventory_filepath', 'rules_filepath', 'user_columns']:
             item = session.pop(key, None)
-            # Asegurarse de que el item es una ruta de archivo y que existe antes de intentar borrarlo.
+            # Make sure the item is a file path and that it exists before trying to delete it.
             if isinstance(item, str) and item.startswith(UPLOAD_FOLDER) and os.path.exists(item):
                 try:
                     os.remove(item)
                 except OSError:
-                    # No hacer nada si el archivo no existe o hay otro error
+                    # Do nothing if the file does not exist or there is another error
                     pass
 
-# --- Punto de Entrada para Ejecutar la Aplicación ---
+# --- Entry Point to Run the Application ---
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

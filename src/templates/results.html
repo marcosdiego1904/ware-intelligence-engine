@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resultados del Análisis - WIE</title>
+    <title>Analysis Results - WIE</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -110,10 +110,10 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
         }
         
-        .priority-MUY-ALTA { border-color: var(--priority-muy-alta); }
-        .priority-ALTA { border-color: var(--priority-alta); }
-        .priority-MEDIA { border-color: var(--priority-media); }
-        .priority-BAJA { border-color: var(--priority-baja); }
+        .priority-VERY-HIGH { border-color: var(--priority-muy-alta); }
+        .priority-HIGH { border-color: var(--priority-alta); }
+        .priority-MEDIUM { border-color: var(--priority-media); }
+        .priority-LOW { border-color: var(--priority-baja); }
 
         .anomaly-card .priority-tag {
             grid-column: 1 / 2;
@@ -135,10 +135,10 @@
             text-transform: uppercase;
         }
 
-        .priority-label.priority-MUY-ALTA { background-color: var(--priority-muy-alta); }
-        .priority-label.priority-ALTA { background-color: var(--priority-alta); }
-        .priority-label.priority-MEDIA { background-color: var(--priority-media); }
-        .priority-label.priority-BAJA { background-color: var(--priority-baja); }
+        .priority-label.priority-VERY-HIGH { background-color: var(--priority-muy-alta); }
+        .priority-label.priority-HIGH { background-color: var(--priority-alta); }
+        .priority-label.priority-MEDIUM { background-color: var(--priority-media); }
+        .priority-label.priority-LOW { background-color: var(--priority-baja); }
 
         .anomaly-card .pallet-info {
             grid-column: 2 / 3;
@@ -246,11 +246,11 @@
     <main class="container">
         <header class="page-header">
             <hgroup>
-                <h1>Dashboard de Discrepancias</h1>
-                <h2>Se encontraron <strong>{{ results|length }}</strong> anomalías.</h2>
+                <h1>Discrepancy Dashboard</h1>
+                <h2>Found <strong>{{ results|length }}</strong> anomalies.</h2>
             </hgroup>
             <a href="/" role="button" class="btn secondary">
-                ← Analizar otro reporte
+                ← Analyze another report
             </a>
         </header>
         
@@ -272,7 +272,7 @@
                 </div>
 
                 <div class="location-info">
-                    <div class="info-label">Ubicación</div>
+                    <div class="info-label">Location</div>
                     <div class="info-value">{{ anomaly.location }}</div>
                 </div>
 
@@ -286,8 +286,8 @@
                     <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
                     <path d="m9 12 2 2 4-4"></path>
                 </svg>
-                <h3>¡Felicidades! No se encontraron anomalías.</h3>
-                <p>Tu inventario parece estar en perfecto orden.</p>
+                <h3>Congratulations! No anomalies found.</h3>
+                <p>Your inventory seems to be in perfect order.</p>
             </div>
             {% endfor %}
         </div>

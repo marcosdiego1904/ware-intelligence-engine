@@ -7,60 +7,60 @@ from datetime import datetime, timedelta
 
 def load_data(inventory_path, rules_path):
     """
-    Carga los datos de los archivos Excel de inventario y reglas.
+    Loads data from inventory and rules Excel files.
     """
     try:
         inventory_df = pd.read_excel(inventory_path, parse_dates=['creation_date'])
         rules_df = pd.read_excel(rules_path)
-        print(f"✅ Archivo de inventario '{os.path.basename(inventory_path)}' cargado.")
-        print(f"✅ Archivo de reglas '{os.path.basename(rules_path)}' cargado.")
+        print(f"✅ Inventory file '{os.path.basename(inventory_path)}' loaded.")
+        print(f"✅ Rules file '{os.path.basename(rules_path)}' loaded.")
         return inventory_df, rules_df
     except FileNotFoundError as e:
-        print(f"❌ ERROR: No se encontró el archivo - {e}")
+        print(f"❌ ERROR: File not found - {e}")
         return None, None
     except Exception as e:
-        print(f"❌ ERROR: Ocurrió un error inesperado al cargar los datos - {e}")
+        print(f"❌ ERROR: An unexpected error occurred while loading data - {e}")
         return None, None
 
 def get_rule_for_location(location, rules_df):
     """
-    Encuentra la regla de negocio que corresponde a una ubicación específica.
-    Ahora es insensible a mayúsculas/minúsculas.
+    Finds the business rule that corresponds to a specific location.
+    Now it is case-insensitive.
     """
     if not isinstance(location, str): return None 
     location = location.strip()
     
     for index, rule in rules_df.iterrows():
         pattern = rule['location_pattern'].replace('*', '.*')
-        # MEJORA: Añadimos re.IGNORECASE para que la coincidencia no distinga mayúsculas/minúsculas.
+        # IMPROVEMENT: Added re.IGNORECASE to make the match case-insensitive.
         regex = f"^{pattern}$"
         if re.match(regex, location, re.IGNORECASE):
             return rule
     return None
 
-# --- NUEVA DETECCIÓN 6: UBICACIÓN FALTANTE ---
+# --- NEW DETECTION 6: MISSING LOCATION ---
 def detect_missing_locations(inventory_df, debug=False):
     """
-    Detección 6: Encuentra pallets sin ninguna ubicación asignada.
+    Detection 6: Finds pallets with no assigned location.
     """
     anomalies = []
-    # Filtramos para encontrar pallets donde el tipo de ubicación es 'FALTANTE'.
-    missing_loc_pallets = inventory_df[inventory_df['location_type'] == 'FALTANTE']
+    # We filter to find pallets where the location type is 'MISSING'.
+    missing_loc_pallets = inventory_df[inventory_df['location_type'] == 'MISSING']
     
     if debug and not missing_loc_pallets.empty:
-        print("  [DEBUG D6] Pallets encontrados con ubicación faltante.")
+        print("  [DEBUG D6] Pallets found with missing location.")
 
     for index, pallet in missing_loc_pallets.iterrows():
         anomalies.append({
             'pallet_id': pallet['pallet_id'], 'location': 'N/A',
-            'anomaly_type': 'Ubicación Faltante', 'priority': 'MUY ALTA',
-            'details': "El pallet no tiene ninguna ubicación registrada en el reporte."
+            'anomaly_type': 'Missing Location', 'priority': 'VERY HIGH',
+            'details': "The pallet has no location registered in the report."
         })
     return anomalies
 
 def detect_floating_pallets(inventory_df, hours_threshold=8, debug=False):
     """
-    Detección 1: Encuentra pallets en 'RECEIVING' por más tiempo del permitido.
+    Detection 1: Finds pallets in 'RECEIVING' for longer than allowed.
     """
     anomalies = []
     now = datetime.now()
@@ -68,18 +68,18 @@ def detect_floating_pallets(inventory_df, hours_threshold=8, debug=False):
     for index, pallet in receiving_pallets.iterrows():
         time_in_receiving = now - pallet['creation_date']
         if debug:
-            print(f"  [DEBUG D1] Pallet {pallet['pallet_id']} en RECEIVING por {time_in_receiving.total_seconds()/3600:.2f}h. Umbral: {hours_threshold}h.")
+            print(f"  [DEBUG D1] Pallet {pallet['pallet_id']} in RECEIVING for {time_in_receiving.total_seconds()/3600:.2f}h. Threshold: {hours_threshold}h.")
         if time_in_receiving > timedelta(hours=hours_threshold):
             anomalies.append({
                 'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                'anomaly_type': 'Pallet Flotante', 'priority': 'ALTA',
-                'details': f"El pallet ha estado en RECEIVING por más de {hours_threshold} horas ({time_in_receiving.total_seconds()/3600:.2f}h)."
+                'anomaly_type': 'Floating Pallet', 'priority': 'HIGH',
+                'details': f"The pallet has been in RECEIVING for more than {hours_threshold} hours ({time_in_receiving.total_seconds()/3600:.2f}h)."
             })
     return anomalies
 
 def detect_lot_stragglers(inventory_df, rules_df, completion_threshold=0.85, debug=False):
     """
-    Detección 2: Encuentra pallets rezagados de lotes casi completos.
+    Detection 2: Finds straggler pallets from almost complete lots.
     """
     anomalies = []
     lots = inventory_df.groupby('receipt_number')
@@ -88,20 +88,20 @@ def detect_lot_stragglers(inventory_df, rules_df, completion_threshold=0.85, deb
         total_pallets = lot_df.shape[0]
         completion_ratio = final_pallets / total_pallets if total_pallets > 0 else 0
         if debug:
-            print(f"  [DEBUG D2] Lote '{receipt_number}': Ratio={completion_ratio:.2f}, Umbral={completion_threshold}")
+            print(f"  [DEBUG D2] Lot '{receipt_number}': Ratio={completion_ratio:.2f}, Threshold={completion_threshold}")
         if completion_ratio >= completion_threshold:
             stragglers = lot_df[lot_df['location_type'] == 'RECEIVING']
             for index, pallet in stragglers.iterrows():
                 anomalies.append({
                     'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                    'anomaly_type': 'Rezagado de Lote', 'priority': 'MUY ALTA',
-                    'details': f"El {completion_ratio:.0%} del lote '{receipt_number}' ya fue almacenado, pero este pallet sigue en recepción."
+                    'anomaly_type': 'Lot Straggler', 'priority': 'VERY HIGH',
+                    'details': f"{completion_ratio:.0%} of lot '{receipt_number}' has already been stored, but this pallet is still in reception."
                 })
     return anomalies
 
 def detect_stuck_in_transit_pallets(inventory_df, rules_df, lot_completion_threshold=0.80, hours_threshold=6, debug=False):
     """
-    Detección 3: Encuentra pallets atascados en ubicaciones de tránsito.
+    Detection 3: Finds pallets stuck in transit locations.
     """
     anomalies = []
     now = datetime.now()
@@ -111,37 +111,37 @@ def detect_stuck_in_transit_pallets(inventory_df, rules_df, lot_completion_thres
         total_pallets = lot_df.shape[0]
         completion_ratio = final_pallets / total_pallets if total_pallets > 0 else 0
         if debug:
-            print(f"  [DEBUG D3-Lote] Lote '{receipt_number}': Ratio={completion_ratio:.2f}, Umbral={lot_completion_threshold}")
+            print(f"  [DEBUG D3-Lot] Lot '{receipt_number}': Ratio={completion_ratio:.2f}, Threshold={lot_completion_threshold}")
         if completion_ratio >= lot_completion_threshold:
             stuck_pallets = lot_df[lot_df['location_type'] == 'TRANSITIONAL']
             for index, pallet in stuck_pallets.iterrows():
                 anomalies.append({
                     'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                    'anomaly_type': 'Atascado en Tránsito (Lote Completo)', 'priority': 'ALTA',
-                    'details': f"El {completion_ratio:.0%} del lote '{receipt_number}' ya fue almacenado, pero este pallet sigue en una ubicación de tránsito."
+                    'anomaly_type': 'Stuck in Transit (Full Lot)', 'priority': 'HIGH',
+                    'details': f"{completion_ratio:.0%} of lot '{receipt_number}' has already been stored, but this pallet is still in a transit location."
                 })
     transitional_pallets = inventory_df[inventory_df['location_type'] == 'TRANSITIONAL']
     for index, pallet in transitional_pallets.iterrows():
         time_in_transit = now - pallet['creation_date']
         if debug:
-            print(f"  [DEBUG D3-Tiempo] Pallet {pallet['pallet_id']} en Tránsito por {time_in_transit.total_seconds()/3600:.2f}h. Umbral: {hours_threshold}h.")
+            print(f"  [DEBUG D3-Time] Pallet {pallet['pallet_id']} in Transit for {time_in_transit.total_seconds()/3600:.2f}h. Threshold: {hours_threshold}h.")
         if time_in_transit > timedelta(hours=hours_threshold):
             if not any(d['pallet_id'] == pallet['pallet_id'] for d in anomalies):
                 anomalies.append({
                     'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                    'anomaly_type': 'Atascado en Tránsito (Tiempo Excedido)', 'priority': 'MEDIA',
-                    'details': f"El pallet ha estado en una ubicación de tránsito por más de {hours_threshold} horas ({time_in_transit.total_seconds()/3600:.2f}h)."
+                    'anomaly_type': 'Stuck in Transit (Time Exceeded)', 'priority': 'MEDIUM',
+                    'details': f"The pallet has been in a transit location for more than {hours_threshold} hours ({time_in_transit.total_seconds()/3600:.2f}h)."
                 })
     return anomalies
 
 def detect_incompatibility_and_overcapacity(inventory_df, rules_df, debug=False):
     """
-    Detección 4: Encuentra pallets incompatibles y ubicaciones sobre-saturadas.
-    Ahora es insensible a mayúsculas/minúsculas y robusto ante datos nulos.
+    Detection 4: Finds incompatible pallets and over-saturated locations.
+    Now case-insensitive and robust to null data.
     """
     anomalies = []
-    # Usamos una copia y nos aseguramos de que 'location' sea de tipo string,
-    # rellenando valores nulos para evitar errores con .str.upper()
+    # We use a copy and ensure 'location' is of string type,
+    # filling null values to avoid errors with .str.upper()
     temp_df = inventory_df.dropna(subset=['location']).copy()
     temp_df['location_upper'] = temp_df['location'].astype(str).str.upper()
     
@@ -149,68 +149,68 @@ def detect_incompatibility_and_overcapacity(inventory_df, rules_df, debug=False)
     location_counts.columns = ['location_upper', 'pallet_count']
     
     for index, loc_info in location_counts.iterrows():
-        # Buscamos la regla usando la ubicación en mayúsculas para asegurar la coincidencia
+        # We search for the rule using the uppercase location to ensure a match
         rule = get_rule_for_location(loc_info['location_upper'], rules_df)
         if rule is not None:
             if debug:
-                print(f"  [DEBUG D4-Cap] Ubicación '{loc_info['location_upper']}': Conteo={loc_info['pallet_count']}, Capacidad={rule['capacity']}")
+                print(f"  [DEBUG D4-Cap] Location '{loc_info['location_upper']}': Count={loc_info['pallet_count']}, Capacity={rule['capacity']}")
             if loc_info['pallet_count'] > rule['capacity']:
-                # Filtramos el DataFrame original usando el mismo método seguro
+                # We filter the original DataFrame using the same safe method
                 pallets_in_loc = inventory_df[inventory_df['location'].astype(str).str.upper() == loc_info['location_upper']]
                 for _, pallet in pallets_in_loc.iterrows():
                     anomalies.append({
                         'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                        'anomaly_type': 'Ubicación con Sobre-capacidad', 'priority': 'MEDIA',
-                        'details': f"La ubicación '{pallet['location']}' tiene {loc_info['pallet_count']} pallets pero su capacidad es {int(rule['capacity'])}."
+                        'anomaly_type': 'Over-capacity Location', 'priority': 'MEDIUM',
+                        'details': f"Location '{pallet['location']}' has {loc_info['pallet_count']} pallets but its capacity is {int(rule['capacity'])}."
                     })
 
-    # Nos aseguramos de que tanto 'location' como 'description' no sean nulos para esta comprobación
+    # We ensure that both 'location' and 'description' are not null for this check
     for index, pallet in inventory_df.dropna(subset=['location', 'description']).iterrows():
         rule = get_rule_for_location(pallet['location'], rules_df)
         if rule is not None:
-            # Comparamos todo en mayúsculas para ignorar el case.
-            # Usamos .astype(str) para seguridad, aunque dropna ya debería haberlo manejado.
+            # We compare everything in uppercase to ignore case.
+            # We use .astype(str) for safety, although dropna should have already handled it.
             allowed_desc = str(rule['allowed_description']).upper()
             pallet_desc = str(pallet['description']).upper()
             if debug:
-                 print(f"  [DEBUG D4-Incomp] Pallet '{pallet['pallet_id']}': Desc='{pallet_desc}', Regla='{allowed_desc}'")
+                 print(f"  [DEBUG D4-Incomp] Pallet '{pallet['pallet_id']}': Desc='{pallet_desc}', Rule='{allowed_desc}'")
             if not fnmatch.fnmatch(pallet_desc, allowed_desc):
                 anomalies.append({
                     'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-                    'anomaly_type': 'Incompatibilidad Producto-Ubicación', 'priority': 'BAJA',
-                    'details': f"El producto '{pallet['description']}' no coincide con la regla de la ubicación ('{rule['allowed_description']}')."
+                    'anomaly_type': 'Product-Location Incompatibility', 'priority': 'LOW',
+                    'details': f"Product '{pallet['description']}' does not match the location's rule ('{rule['allowed_description']}')."
                 })
     return anomalies
 
 def detect_unknown_locations(inventory_df, debug=False):
     """
-    Detección 5: Encuentra pallets en ubicaciones no definidas en las reglas.
+    Detection 5: Finds pallets in locations not defined in the rules.
     """
     anomalies = []
     unknown_loc_pallets = inventory_df[inventory_df['location_type'] == 'UNKNOWN']
     
     if debug and not unknown_loc_pallets.empty:
-        print("  [DEBUG D5] Pallets encontrados en ubicaciones desconocidas.")
+        print("  [DEBUG D5] Pallets found in unknown locations.")
 
     for index, pallet in unknown_loc_pallets.iterrows():
         anomalies.append({
             'pallet_id': pallet['pallet_id'], 'location': pallet['location'],
-            'anomaly_type': 'Ubicación Desconocida', 'priority': 'ALTA',
-            'details': f"La ubicación '{pallet['location']}' no coincide con ninguna regla definida en warehouse_rules.xlsx."
+            'anomaly_type': 'Unknown Location', 'priority': 'HIGH',
+            'details': f"Location '{pallet['location']}' does not match any rule defined in warehouse_rules.xlsx."
         })
     return anomalies
 
 def run_engine(inventory_df, rules_df, args):
     """
-    Orquesta la ejecución de todas las funciones de detección y devuelve un
-    reporte unificado y priorizado.
+    Orchestrates the execution of all detection functions and returns a
+    unified and prioritized report.
     """
-    print("\n🚀 Ejecutando el motor de inteligencia de almacén...")
+    print("\n🚀 Running the warehouse intelligence engine...")
     
-    # MEJORA: La lógica para asignar el tipo de ubicación ahora maneja 3 casos.
+    # IMPROVEMENT: The logic to assign the location type now handles 3 cases.
     def get_location_type(location, rules):
         if pd.isna(location) or not str(location).strip():
-            return 'FALTANTE'
+            return 'MISSING'
         rule = get_rule_for_location(location, rules)
         if rule is not None:
             return rule['location_type']
@@ -219,7 +219,7 @@ def run_engine(inventory_df, rules_df, args):
     inventory_df['location_type'] = inventory_df['location'].apply(get_location_type, args=(rules_df,))
     
     all_anomalies = (
-        detect_missing_locations(inventory_df, args.debug) + # <-- Nueva Detección 6
+        detect_missing_locations(inventory_df, args.debug) + # <-- New Detection 6
         detect_floating_pallets(inventory_df, args.floating_time, args.debug) +
         detect_lot_stragglers(inventory_df, rules_df, args.straggler_ratio, args.debug) +
         detect_stuck_in_transit_pallets(inventory_df, rules_df, args.stuck_ratio, args.stuck_time, args.debug) +
@@ -227,60 +227,60 @@ def run_engine(inventory_df, rules_df, args):
         detect_unknown_locations(inventory_df, args.debug)
     )
     
-    # Eliminamos duplicados por si un pallet es detectado por varias razones
+    # We remove duplicates in case a pallet is detected for multiple reasons
     unique_anomalies = []
     seen_anomalies = set()
     for anomaly in all_anomalies:
-        # Creamos una tupla única para cada anomalía para poder detectarla
+        # We create a unique tuple for each anomaly to detect it
         anomaly_signature = (anomaly['pallet_id'], anomaly['anomaly_type'])
         if anomaly_signature not in seen_anomalies:
             unique_anomalies.append(anomaly)
             seen_anomalies.add(anomaly_signature)
 
-    priority_map = {'MUY ALTA': 4, 'ALTA': 3, 'MEDIA': 2, 'BAJA': 1}
+    priority_map = {'VERY HIGH': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
     unique_anomalies.sort(key=lambda x: priority_map.get(x['priority'], 0), reverse=True)
     
-    print(f"✅ Motor finalizado. Se encontraron {len(unique_anomalies)} anomalías únicas.")
+    print(f"✅ Engine finished. Found {len(unique_anomalies)} unique anomalies.")
     return unique_anomalies
 
 def display_report(anomalies):
     """
-    Muestra el reporte final de anomalías de una forma clara y legible.
+    Displays the final anomaly report in a clear and readable way.
     """
     print("\n\n" + "="*50)
-    print("🚨 REPORTE FINAL DE ANOMALÍAS (PRIORIZADO) 🚨")
+    print("🚨 FINAL ANOMALY REPORT (PRIORITIZED) 🚨")
     print("="*50)
     
     if not anomalies:
-        print("\n🎉 ¡No se encontraron anomalías! Todo en orden.\n")
+        print("\n🎉 No anomalies found! Everything is in order.\n")
         return
         
     for anomaly in anomalies:
-        print(f"\n[ PRIORIDAD: {anomaly['priority']} ]")
-        print(f"  - TIPO:      {anomaly['anomaly_type']}")
+        print(f"\n[ PRIORITY: {anomaly['priority']} ]")
+        print(f"  - TYPE:      {anomaly['anomaly_type']}")
         print(f"  - PALLET:    {anomaly['pallet_id']}")
-        print(f"  - UBICACIÓN: {anomaly['location']}")
-        print(f"  - DETALLES:  {anomaly['details']}")
+        print(f"  - LOCATION: {anomaly['location']}")
+        print(f"  - DETAILS:  {anomaly['details']}")
     
     print("\n" + "="*50)
 
 def main():
     """
-    Punto de entrada principal del script.
+    Main entry point of the script.
     """
-    parser = argparse.ArgumentParser(description="Warehouse Intelligence Engine: Analiza reportes de inventario para encontrar anomalías.", formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description="Warehouse Intelligence Engine: Analyzes inventory reports to find anomalies.", formatter_class=argparse.RawTextHelpFormatter)
     
-    parser.add_argument('-i', '--inventory', default='data/inventory_report.xlsx', help='Ruta al archivo de inventario .xlsx. (Default: data/inventory_report.xlsx)')
-    parser.add_argument('--debug', action='store_true', help='Activa el modo de depuración para ver detalles del procesamiento.')
+    parser.add_argument('-i', '--inventory', default='data/inventory_report.xlsx', help='Path to the inventory .xlsx file. (Default: data/inventory_report.xlsx)')
+    parser.add_argument('--debug', action='store_true', help='Activates debug mode to see processing details.')
     
-    parser.add_argument('--straggler-ratio', type=float, default=0.85, help='Umbral de completitud de lote para detectar Rezagados (D2). Default: 0.85')
-    parser.add_argument('--stuck-ratio', type=float, default=0.80, help='Umbral de completitud de lote para detectar Atascados (D3). Default: 0.80')
-    parser.add_argument('--floating-time', type=int, default=8, help='Horas para considerar un pallet Flotante en recepción (D1). Default: 8')
-    parser.add_argument('--stuck-time', type=int, default=6, help='Horas para considerar un pallet Atascado en tránsito (D3). Default: 6')
+    parser.add_argument('--straggler-ratio', type=float, default=0.85, help='Lot completion threshold to detect Stragglers (D2). Default: 0.85')
+    parser.add_argument('--stuck-ratio', type=float, default=0.80, help='Lot completion threshold to detect Stuck pallets (D3). Default: 0.80')
+    parser.add_argument('--floating-time', type=int, default=8, help='Hours to consider a pallet as Floating in reception (D1). Default: 8')
+    parser.add_argument('--stuck-time', type=int, default=6, help='Hours to consider a pallet as Stuck in transit (D3). Default: 6')
 
     args = parser.parse_args()
 
-    print("Iniciando Warehouse Intelligence Engine...")
+    print("Starting Warehouse Intelligence Engine...")
     
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
@@ -290,7 +290,7 @@ def main():
     inventory_df, rules_df = load_data(inventory_file, rules_file)
     
     if inventory_df is None or rules_df is None:
-        print("🛑 Ejecución detenida debido a errores en la carga de datos.")
+        print("🛑 Execution stopped due to errors loading data.")
         return
 
     final_anomalies = run_engine(inventory_df, rules_df, args)

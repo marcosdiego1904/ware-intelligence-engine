@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -267,11 +267,11 @@
                     </svg>
                 </div>
                 <h1>Warehouse<br>Intelligence Engine</h1>
-                <p class="subtitle">Analiza y optimiza tu inventario con el poder de la IA.</p>
+                <p class="subtitle">Analyze and optimize your inventory with the power of AI.</p>
             </header>
             
             <section class="sample-data-section">
-                <p class="section-title">¿No tienes archivos? Empieza con nuestros datos de muestra.</p>
+                <p class="section-title">Don't have files? Start with our sample data.</p>
                 <div class="sample-files-container">
                     <!-- Sample Inventory Card -->
                     <div class="sample-file-card">
@@ -279,12 +279,12 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                         </span>
                         <div class="sample-file-info">
-                            <h3 class="sample-file-name">Reporte de Inventario</h3>
-                            <p class="sample-file-description">Un archivo .xlsx de ejemplo con productos, cantidades y fechas de creación.</p>
+                            <h3 class="sample-file-name">Inventory Report</h3>
+                            <p class="sample-file-description">An example .xlsx file with products, quantities, and creation dates.</p>
                         </div>
                         <div class="sample-file-actions">
-                            <button type="button" class="btn-use-sample" data-target-input="inventory_file" data-url="/download_sample/inventory_report3.xlsx" data-filename="inventory_report3.xlsx">Usar para análisis</button>
-                            <a href="/download_sample/inventory_report3.xlsx" download="inventory_report3.xlsx" class="btn-download-sample">Descargar y ver</a>
+                            <button type="button" class="btn-use-sample" data-target-input="inventory_file" data-url="/download_sample/inventory_report3.xlsx" data-filename="inventory_report3.xlsx">Use for analysis</button>
+                            <a href="/download_sample/inventory_report3.xlsx" download="inventory_report3.xlsx" class="btn-download-sample">Download and view</a>
                         </div>
                     </div>
                     <!-- Sample Rules Card -->
@@ -293,12 +293,12 @@
                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.3 10.7 18 9.7 18 8.5c0-1.4-1.1-2.5-2.5-2.5S13 7.1 13 8.5c0 .4.1.8.4 1.2"></path><path d="M14 14v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M14 4h4a2 2 0 0 1 2 2v2"></path><path d="M4 14h10"></path><path d="M4 18h10"></path><path d="M4 6h4"></path><path d="M4 10h4"></path></svg>
                         </span>
                         <div class="sample-file-info">
-                            <h3 class="sample-file-name">Archivo de Reglas</h3>
-                            <p class="sample-file-description">Define las condiciones y umbrales para el análisis de anomalías en el inventario.</p>
+                            <h3 class="sample-file-name">Rules File</h3>
+                            <p class="sample-file-description">Defines the conditions and thresholds for inventory anomaly analysis.</p>
                         </div>
                         <div class="sample-file-actions">
-                            <button type="button" class="btn-use-sample" data-target-input="rules_file" data-url="/download_sample/warehouse_rules.xlsx" data-filename="warehouse_rules.xlsx">Usar para análisis</button>
-                            <a href="/download_sample/warehouse_rules.xlsx" download="warehouse_rules.xlsx" class="btn-download-sample">Descargar y ver</a>
+                            <button type="button" class="btn-use-sample" data-target-input="rules_file" data-url="/download_sample/warehouse_rules.xlsx" data-filename="warehouse_rules.xlsx">Use for analysis</button>
+                            <a href="/download_sample/warehouse_rules.xlsx" download="warehouse_rules.xlsx" class="btn-download-sample">Download and view</a>
                         </div>
                     </div>
                 </div>
@@ -307,25 +307,25 @@
             <form method="post" enctype="multipart/form-data">
                 <div class="form-group">
                     <label for="inventory_file">
-                        Informe de inventario (Requerido)
+                        Inventory Report (Required)
                     </label>
                     <div class="file-drop-area">
-                        <span class="file-msg">Arrastra y suelta un archivo o <span class="file-msg-highlight">búscalo en tu equipo</span>.</span>
+                        <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer</span>.</span>
                         <input type="file" id="inventory_file" name="inventory_file" required>
                     </div>
                 </div>
 
-                <div class.form-group.is-secondary>
+                <div class="form-group is-secondary">
                     <label for="rules_file">
-                        Archivo de Reglas (Opcional, usará el default si no se sube)
+                        Rules File (Optional, will use default if not uploaded)
                     </label>
                     <div class="file-drop-area">
-                        <span class="file-msg">Sube el archivo de reglas o <span class="file-msg-highlight">búscalo en tu equipo</span>.</span>
+                        <span class="file-msg">Upload the rules file or <span class="file-msg-highlight">browse your computer</span>.</span>
                         <input type="file" id="rules_file" name="rules_file">
                     </div>
                 </div>
 
-                <button type="submit">Analizar</button>
+                <button type="submit">Analyze</button>
             </form>
         </article>
     </main>
@@ -348,7 +348,7 @@
 
                 if (!fileInput) return;
 
-                fileMsg.innerHTML = `Cargando <span style="font-weight: 600;">${filename}</span>...`;
+                fileMsg.innerHTML = `Loading <span style="font-weight: 600;">${filename}</span>...`;
                 dropArea.classList.add('is-dragover');
 
                 fetch(fileUrl, {
@@ -369,7 +369,7 @@
                     })
                     .catch(err => {
                         console.error('Error fetching sample file:', err);
-                        fileMsg.innerHTML = 'Error al cargar el archivo.';
+                        fileMsg.innerHTML = 'Error loading file.';
                         setTimeout(() => {
                            fileMsg.innerHTML = originalMessages[targetInputId];
                         }, 3000);
@@ -388,7 +388,7 @@
             fileInput.addEventListener('change', () => {
                 const files = fileInput.files;
                 if (files && files.length > 0) {
-                    fileMsg.innerHTML = `Archivo: <span style="font-weight: 600;">${files[0].name}</span>`;
+                    fileMsg.innerHTML = `File: <span style="font-weight: 600;">${files[0].name}</span>`;
                 } else {
                     fileMsg.innerHTML = originalMessages[fileInput.id];
                 }
