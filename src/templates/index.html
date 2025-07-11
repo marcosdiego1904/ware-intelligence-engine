@@ -1,325 +1,264 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Intelligence Engine</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #f4f7fc;
-            --primary-text: #2c3e50;
-            --accent-color: #3498db;
-            --accent-color-dark: #2980b9;
-            --secondary-text: #7f8c8d;
-            --white: #ffffff;
-            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
-            --border-color: #e1e5ea;
-            --border-radius: 12px;
-            --success-color: #2ecc71;
-            --success-bg: #e8f9f1;
-            --success-border: #a3e9c4;
-            --error-color: #e74c3c;
-            --disabled-bg: #ecf0f1;
-            --disabled-text: #bdc3c7;
-        }
+{% extends "base.html" %}
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--primary-text);
-            font-family: 'Poppins', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            margin: 0;
-            padding: 3rem 1.5rem;
-            box-sizing: border-box;
-        }
+{% block title %}Start Analysis - {{ super() }}{% endblock %}
 
-        .container {
-            max-width: 650px;
-            width: 100%;
-        }
+{% block head_extra %}
+<style>
+    .container {
+        max-width: 650px;
+        width: 100%;
+        margin: 2rem auto 0 auto;
+    }
+    .card {
+        background-color: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        padding: 3rem;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .logo {
+        color: var(--accent-color);
+        margin-bottom: 1rem;
+        width: 48px;
+        height: 48px;
+        display: inline-block;
+    }
+    h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem 0;
+        line-height: 1.2;
+    }
+    .subtitle {
+        color: var(--secondary-text);
+        margin-bottom: 2.5rem;
+        font-size: 1.1rem;
+    }
+    form {
+        text-align: left;
+    }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    .form-group + .form-group {
+        margin-top: 0;
+    }
+    label {
+        font-weight: 600;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .label-tag {
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+        text-transform: uppercase;
+    }
+    .label-tag.required {
+        background-color: var(--success-bg);
+        color: var(--success-color);
+    }
+    .label-tag.optional {
+        background-color: #f2f3f4;
+        color: var(--secondary-text);
+    }
+    .label-subtitle {
+        font-size: 0.85rem;
+        color: var(--secondary-text);
+        margin: -0.25rem 0 0.75rem 0;
+    }
+    .file-drop-area {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 1.5rem;
+        border: 2px dashed var(--border-color);
+        border-radius: var(--border-radius);
+        background-color: #fafbfc;
+        cursor: pointer;
+        transition: border-color 0.3s, background-color 0.3s;
+        box-sizing: border-box;
+    }
+    .file-drop-area:hover,
+    .file-drop-area.is-dragover {
+        border-color: var(--accent-color);
+        background-color: var(--white);
+    }
+    .file-drop-area.is-selected {
+        border-color: var(--success-border);
+        background-color: var(--success-bg);
+    }
+    .file-drop-area.is-selected .file-msg-highlight {
+        color: var(--success-color);
+    }
+    .file-drop-area input[type="file"] {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+    .file-msg {
+        color: var(--secondary-text);
+        font-size: 0.9rem;
+        text-align: center;
+        line-height: 1.3;
+    }
+    .file-icon {
+        color: var(--accent-color);
+        margin-bottom: 0.75rem;
+    }
+    .file-icon.success {
+         color: var(--success-color);
+    }
+    .file-msg-highlight {
+        color: var(--accent-color);
+        font-weight: 600;
+    }
+    .sample-options {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+    }
+    .sample-options-divider {
+        font-size: 0.8rem;
+        color: var(--secondary-text);
+        font-weight: 500;
+    }
+    .btn-link {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        border-radius: 8px;
+        padding: 0.5rem 0;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.2s;
+        border: none;
+        background: none;
+    }
+    .btn-use-sample {
+        color: var(--accent-color);
+    }
+    .btn-use-sample:hover {
+        text-decoration: underline;
+    }
+    .btn-download-sample {
+        color: var(--primary-text);
+        text-decoration: none;
+    }
+    .btn-download-sample:hover {
+        text-decoration: underline;
+    }
+    #analyze-btn {
+        background: linear-gradient(45deg, var(--accent-color), var(--accent-color-dark));
+        color: var(--white);
+        border: none;
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        width: 100%;
+        cursor: pointer;
+        margin-top: 2rem;
+        transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+    }
+    #analyze-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
+    }
+    #analyze-btn:disabled {
+        background: var(--disabled-bg);
+        color: var(--disabled-text);
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
 
-        .card {
-            background-color: var(--white);
-            border-radius: var(--border-radius);
-            box-shadow: var(--card-shadow);
-            padding: 3rem;
-            text-align: center;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="logo">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
+            </svg>
+        </div>
+        <h1>Warehouse Intelligence Engine</h1>
+        <p class="subtitle">Analyze and optimize your inventory with the power of AI.</p>
         
-        .logo {
-            color: var(--accent-color);
-            margin-bottom: 1rem;
-            width: 48px;
-            height: 48px;
-            display: inline-block;
-        }
-
-        h1 {
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-            line-height: 1.2;
-        }
-
-        .subtitle {
-            color: var(--secondary-text);
-            margin-bottom: 2.5rem;
-            font-size: 1.1rem;
-        }
-
-        form {
-            text-align: left;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            align-items: start;
-        }
-
-        .form-group + .form-group {
-            margin-top: 0; /* Override previous margin */
-        }
-
-        label {
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .label-tag {
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 0.2rem 0.5rem;
-            border-radius: 6px;
-            text-transform: uppercase;
-        }
-
-        .label-tag.required {
-            background-color: var(--success-bg);
-            color: var(--success-color);
-        }
-
-        .label-tag.optional {
-            background-color: #f2f3f4;
-            color: var(--secondary-text);
-        }
-        
-        .label-subtitle {
-            font-size: 0.85rem;
-            color: var(--secondary-text);
-            margin: -0.25rem 0 0.75rem 0;
-        }
-
-        .file-drop-area {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            padding: 1.5rem; /* Adjusted padding */
-            border: 2px dashed var(--border-color);
-            border-radius: var(--border-radius);
-            background-color: #fafbfc;
-            cursor: pointer;
-            transition: border-color 0.3s, background-color 0.3s;
-            box-sizing: border-box;
-        }
-
-        .file-drop-area:hover,
-        .file-drop-area.is-dragover {
-            border-color: var(--accent-color);
-            background-color: var(--white);
-        }
-        
-        .file-drop-area.is-selected {
-            border-color: var(--success-border);
-            background-color: var(--success-bg);
-        }
-        
-        .file-drop-area.is-selected .file-msg-highlight {
-            color: var(--success-color);
-        }
-
-        .file-drop-area input[type="file"] {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        .file-msg {
-            color: var(--secondary-text);
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.3; /* Adjusted line-height */
-        }
-        
-        .file-icon {
-            color: var(--accent-color);
-            margin-bottom: 0.75rem;
-        }
-        
-        .file-icon.success {
-             color: var(--success-color);
-        }
-
-        .file-msg-highlight {
-            color: var(--accent-color);
-            font-weight: 600;
-        }
-
-        .sample-options {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem; /* Adjusted gap */
-            margin-top: 0.75rem; /* Adjusted margin */
-        }
-
-        .sample-options-divider {
-            font-size: 0.8rem;
-            color: var(--secondary-text);
-            font-weight: 500;
-        }
-        
-        .btn-link {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 0.8rem; /* Adjusted font size */
-            border-radius: 8px;
-            padding: 0.5rem 0;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.2s;
-            border: none;
-            background: none;
-        }
-        
-        .btn-use-sample {
-            color: var(--accent-color);
-        }
-        .btn-use-sample:hover {
-            text-decoration: underline;
-        }
-
-        .btn-download-sample {
-            color: var(--primary-text);
-            text-decoration: none;
-        }
-        .btn-download-sample:hover {
-            text-decoration: underline;
-        }
-        
-        #analyze-btn {
-            background: linear-gradient(45deg, var(--accent-color), var(--accent-color-dark));
-            color: var(--white);
-            border: none;
-            border-radius: var(--border-radius);
-            padding: 1rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 2rem; /* Adjusted margin */
-            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
-        }
-
-        #analyze-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
-        }
-        
-        #analyze-btn:disabled {
-            background: var(--disabled-bg);
-            color: var(--disabled-text);
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <div class="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
-                </svg>
-            </div>
-            <h1>Warehouse Intelligence Engine</h1>
-            <p class="subtitle">Analyze and optimize your inventory with the power of AI.</p>
+        <form id="upload-form" action="/" method="post" enctype="multipart/form-data">
             
-            <form id="upload-form" action="/" method="post" enctype="multipart/form-data">
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="inventory-file">
-                            Inventory Report
-                            <span class="label-tag required">Required</span>
-                        </label>
-                        <div class="file-drop-area" id="inventory-drop-area">
-                            <input type="file" id="inventory-file" name="inventory_file" accept=".xlsx">
-                            <div class="file-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
-                                    <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM2 2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
-                                </svg>
-                            </div>
-                            <span class="file-msg">Drag & drop or <span class="file-msg-highlight">browse.</span></span>
-                        </div>
-                        <div class="sample-options">
-                            <span>No file?</span>
-                            <button type="button" class="btn-link btn-use-sample" data-type="inventory">Use sample</button>
-                            <a href="/download/inventory_report.xlsx" class="btn-link btn-download-sample" download>Download</a>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="rules-file">
-                            Rules File
-                            <span class="label-tag optional">Optional</span>
-                        </label>
-                        <div class="file-drop-area" id="rules-drop-area">
-                            <input type="file" id="rules-file" name="rules_file" accept=".xlsx">
-                            <div class="file-icon">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="inventory-file">
+                        Inventory Report
+                        <span class="label-tag required">Required</span>
+                    </label>
+                    <div class="file-drop-area" id="inventory-drop-area">
+                        <input type="file" id="inventory-file" name="inventory_file" accept=".xlsx">
+                        <div class="file-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M4 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-2 1h10v1H2v-1zm1-4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1H3zm11 1a.5.5 0 0 0-1 0v1a.5.5 0 0 0 1 0V5z"/>
-                                    <path fill-rule="evenodd" d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM3 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H3z"/>
-                                </svg>
-                            </div>
-                            <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer.</span></span>
+                                <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM2 2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H2z"/>
+                            </svg>
                         </div>
-                        <div class="sample-options">
-                            <button type="button" class="btn-link btn-use-sample" data-type="rules">Use sample rules</button>
-                            <a href="/download/warehouse_rules.xlsx" class="btn-link btn-download-sample" download>Download</a>
-                        </div>
+                        <span class="file-msg">Drag & drop or <span class="file-msg-highlight">browse.</span></span>
+                    </div>
+                    <div class="sample-options">
+                        <span>No file?</span>
+                        <button type="button" class="btn-link btn-use-sample" data-type="inventory">Use sample</button>
+                        <a href="/download/inventory_report.xlsx" class="btn-link btn-download-sample" download>Download</a>
                     </div>
                 </div>
 
-                <input type="hidden" name="use_sample_inventory" id="use_sample_inventory" value="false">
-                <input type="hidden" name="use_sample_rules" id="use_sample_rules" value="false">
-                
-                <button type="submit" id="analyze-btn" disabled>Analyze</button>
-            </form>
-        </div>
+                <div class="form-group">
+                    <label for="rules-file">
+                        Rules File
+                        <span class="label-tag optional">Optional</span>
+                    </label>
+                    <div class="file-drop-area" id="rules-drop-area">
+                        <input type="file" id="rules-file" name="rules_file" accept=".xlsx">
+                        <div class="file-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4 7a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-2 1h10v1H2v-1zm1-4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1H3zm11 1a.5.5 0 0 0-1 0v1a.5.5 0 0 0 1 0V5z"/>
+                                <path fill-rule="evenodd" d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1zM3 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H3z"/>
+                            </svg>
+                        </div>
+                        <span class="file-msg">Drag and drop a file or <span class="file-msg-highlight">browse your computer.</span></span>
+                    </div>
+                    <div class="sample-options">
+                        <button type="button" class="btn-link btn-use-sample" data-type="rules">Use sample rules</button>
+                        <a href="/download/warehouse_rules.xlsx" class="btn-link btn-download-sample" download>Download</a>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="use_sample_inventory" id="use_sample_inventory" value="false">
+            <input type="hidden" name="use_sample_rules" id="use_sample_rules" value="false">
+            
+            <button type="submit" id="analyze-btn" disabled>Analyze</button>
+        </form>
     </div>
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const uploadForm = document.getElementById('upload-form');
@@ -466,5 +405,4 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonState();
 });
 </script>
-</body>
-</html>
+{% endblock %}

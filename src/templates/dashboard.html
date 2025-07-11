@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    .card {
+        background-color: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        padding: 2rem;
+    }
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .table-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+    th, td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+    th {
+        font-weight: 600;
+        color: var(--secondary-text);
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+    }
+    tbody tr:hover {
+        background-color: #f9fafc;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        border: 2px dashed var(--border-color);
+        border-radius: var(--border-radius);
+        background-color: #fcfdfe;
+    }
+    .empty-state h3 {
+        font-size: 1.2rem;
+        margin: 0 0 0.5rem 0;
+    }
+    .empty-state p {
+        color: var(--secondary-text);
+        margin: 0 0 1.5rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="table-header">
+            <h2>My Analysis Reports</h2>
+        </div>
+
+        {% if reports %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Report Name</th>
+                    <th>Date Created</th>
+                    <th>Anomalies Found</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>{{ report.report_name }}</td>
+                    <td>{{ report.timestamp.strftime('%Y-%m-%d %H:%M') }} UTC</td>
+                    <td>{{ report.anomalies|length }}</td>
+                    <td>
+                        <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-secondary">View Details</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <h3>No reports found</h3>
+            <p>It looks like you haven't run any analysis yet.</p>
+            <a href="{{ url_for('index') }}" class="btn btn-primary">Start Your First Analysis</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

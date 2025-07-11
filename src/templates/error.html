@@ -1,28 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error - WIE</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
-</head>
-<body>
-    <main class="container">
-        <article>
-            <header>
-                <h2>Houston, we have a problem...</h2>
-            </header>
-            <p>An error occurred while processing your request. This could be because:</p>
-            <ul>
-                <li>The uploaded file is not a valid Excel (.xlsx) format.</li>
-                <li>The columns in the file do not match the expected format.</li>
-                <li>The file is corrupt or empty.</li>
-            </ul>
-            <p><strong>Technical error message:</strong> <code>{{ error_message }}</code></p>
-            <footer>
-                <a href="/" role="button">Try Again</a>
-            </footer>
-        </article>
-    </main>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Error - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .container {
+        max-width: 700px;
+        margin: 2rem auto 0 auto;
+        text-align: center;
+    }
+    .card {
+        background-color: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        padding: 3rem;
+        border-top: 5px solid var(--error-color);
+    }
+    .error-icon {
+        color: var(--error-color);
+        width: 60px;
+        height: 60px;
+        margin-bottom: 1.5rem;
+    }
+    h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 0 0 1rem 0;
+    }
+    .error-message {
+        font-size: 1.1rem;
+        color: var(--secondary-text);
+        margin-bottom: 2rem;
+    }
+    .error-details {
+        background-color: #fafafa;
+        padding: 1rem;
+        border-radius: 8px;
+        font-family: monospace;
+        color: var(--primary-text);
+        margin-bottom: 2.5rem;
+        text-align: left;
+        border: 1px solid var(--border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card">
+        <div class="error-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        </div>
+        <h1>An Error Occurred</h1>
+        <p class="error-message">We're sorry, but something went wrong while processing your request.</p>
+        
+        {% if error_message %}
+        <div class="error-details">
+            <strong>Details:</strong> {{ error_message }}
+        </div>
+        {% endif %}
+
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Go to Homepage</a>
+    </div>
+</div>
+{% endblock %}
