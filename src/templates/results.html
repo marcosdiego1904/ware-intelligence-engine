@@ -3,6 +3,7 @@
 {% block title %}Analysis Results - {{ super() }}{% endblock %}
 
 {% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     .container {
         max-width: 900px;
@@ -94,6 +95,51 @@
         </hgroup>
     </header>
 
+    {% if location_summary %}
+    <div class="card" style="margin-bottom: 2rem;">
+        <h3 style="text-align: left; margin-top: 0;">Location Hotspots</h3>
+        <p style="text-align: left; margin-top: -1rem; margin-bottom: 1.5rem; color: var(--secondary-text);">The areas in your warehouse with the most recurring problems.</p>
+        <table style="width: 100%; text-align: left;">
+            <thead>
+                <tr>
+                    <th style="padding-bottom: 1rem;">Location</th>
+                    <th style="padding-bottom: 1rem; text-align: center;"># of Anomalies</th>
+                    <th style="padding-bottom: 1rem;">Main Problem</th>
+                    <th style="padding-bottom: 1rem;">Highest Priority</th>
+                </tr>
+            </thead>
+            <tbody id="hotspots-table-body">
+                {% for summary in location_summary %}
+                <tr>
+                    <td style="font-weight: 600;">{{ summary.location_name }}</td>
+                    <td style="text-align: center;">{{ summary.anomaly_count }}</td>
+                    <td>{{ summary.main_anomaly }}</td>
+                    <td>
+                        <span class="priority-label priority-{{ summary.highest_priority.replace(' ', '-') }}">
+                           {{ summary.highest_priority }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div id="location-details-container" class="card" style="margin-top: 2rem; display: none;">
+        <h3 id="details-title"></h3>
+        <div style="display: flex; gap: 2rem;">
+            <div style="flex-basis: 50%;">
+                <h4>Pallets Afectados</h4>
+                <ul id="details-pallet-list"></ul>
+            </div>
+            <div style="flex-basis: 50%; max-width: 300px; margin: auto;">
+                <h4>Distribución de Anomalías</h4>
+                <canvas id="anomaly-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
     {% if results %}
         <div class="results-grid">
         {% for result in results %}
@@ -140,13 +186,122 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // ---- Lógica para marcar anomalías como completadas ----
         const anomalyCards = document.querySelectorAll('.anomaly-card');
         anomalyCards.forEach(card => {
             const toggle = card.querySelector('.completion-toggle');
-            toggle.addEventListener('click', () => {
-                card.classList.toggle('is-completed');
-            });
+            if(toggle) {
+                toggle.addEventListener('click', () => {
+                    card.classList.toggle('is-completed');
+                });
+            }
+        });
+    
+        // ---- MÓDULO 2: LÓGICA DEL DIAGNÓSTICO INTERACTIVO ----
+        const hotspotsTableBody = document.getElementById('hotspots-table-body');
+        const detailsContainer = document.getElementById('location-details-container');
+        const detailsTitle = document.getElementById('details-title');
+        const palletList = document.getElementById('details-pallet-list');
+        const chartCanvas = document.getElementById('anomaly-chart');
+        let myChart = null; // Variable para guardar la instancia del gráfico
+    
+        // Si la tabla no existe, no hacemos nada más.
+        if (!hotspotsTableBody) return;
+    
+        // Añadimos un data-attribute a cada fila para saber a qué ubicación corresponde
+        hotspotsTableBody.querySelectorAll('tr').forEach(row => {
+            const locationCell = row.cells[0];
+            if (locationCell) {
+                const locationName = locationCell.textContent.trim();
+                row.dataset.location = locationName;
+                row.style.cursor = 'pointer'; // Cambia el cursor para que parezca clickeable
+                row.title = `Click to see details for ${locationName}`; // Tooltip útil
+            }
+        });
+    
+        hotspotsTableBody.addEventListener('click', async (event) => {
+            const row = event.target.closest('tr');
+            if (!row || !row.dataset.location) return;
+    
+            const location = row.dataset.location;
+            const reportId = {{ report_id }}; // Obtenemos el ID del reporte desde Jinja
+    
+            // Construimos la URL para nuestra API
+            // Usamos encodeURIComponent para manejar caracteres especiales en la ubicación
+            const apiUrl = `/report/${reportId}/location_details/${encodeURIComponent(location)}`;
+    
+            try {
+                // Hacemos la llamada a nuestra API del backend
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    console.error("Error fetching location details:", response.statusText);
+                    alert("Could not load details for this location.");
+                    return;
+                }
+    
+                const data = await response.json();
+    
+                // --- Ahora, "decoramos" la página con los datos ---
+    
+                // 1. Actualizar título y lista de pallets
+                detailsTitle.textContent = `Diagnostic for: ${data.location}`;
+                palletList.innerHTML = ''; // Limpiamos la lista anterior
+                if (data.pallets && data.pallets.length > 0) {
+                    data.pallets.forEach(palletId => {
+                        const li = document.createElement('li');
+                        li.textContent = palletId;
+                        palletList.appendChild(li);
+                    });
+                } else {
+                    const li = document.createElement('li');
+                    li.textContent = 'No specific pallets involved.';
+                    palletList.appendChild(li);
+                }
+    
+    
+                // 2. Crear o actualizar el gráfico de pastel
+                if (myChart) {
+                    myChart.destroy(); // Destruimos el gráfico anterior si existe
+                }
+                
+                myChart = new Chart(chartCanvas, {
+                    type: 'pie',
+                    data: {
+                        labels: data.chart.labels,
+                        datasets: [{
+                            label: 'Anomaly Count',
+                            data: data.chart.data,
+                            backgroundColor: [ // Colores atractivos para el gráfico
+                                'rgba(231, 76, 60, 0.8)',
+                                'rgba(243, 156, 18, 0.8)',
+                                'rgba(52, 152, 219, 0.8)',
+                                'rgba(149, 165, 166, 0.8)',
+                                'rgba(26, 188, 156, 0.8)'
+                            ],
+                            borderColor: 'rgba(255, 255, 255, 1)',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        }
+                    }
+                });
+    
+                // 3. Hacemos visible el contenedor de detalles
+                detailsContainer.style.display = 'block';
+                // Hacemos scroll para que el usuario vea el nuevo contenido
+                detailsContainer.scrollIntoView({ behavior: 'smooth' });
+    
+            } catch (error) {
+                console.error("Failed to process location details:", error);
+                alert("An unexpected error occurred while fetching details.");
+            }
         });
     });
-</script>
+    </script>
 {% endblock %}

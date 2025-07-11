@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # We assume your engine is in 'main.py' inside the same 'src' folder
-from main import run_engine
+from main import run_engine, summarize_anomalies_by_location
 
 # --- Flask Application Configuration ---
 # Robust and cross-platform path configuration.
@@ -26,7 +26,8 @@ _data_folder = os.path.join(_project_root, 'data')
 app = Flask(__name__, template_folder=_template_folder)
 
 # Database and Login Manager Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../instance/database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -52,6 +53,7 @@ class AnalysisReport(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     anomalies = db.relationship('Anomaly', backref='report', lazy=True, cascade="all, delete-orphan")
+    location_summary = db.Column(db.Text, nullable=True) # Stores a JSON string of the location summary
 
 class Anomaly(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,7 +67,7 @@ def load_user(user_id):
 
 
 # IMPORTANT: Change this to a real and unique secret key in a production environment.
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
+# app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure') # This line is removed as per the new_code
 
 # --- Initialize Database ---
 # This replaces the deprecated @before_first_request
@@ -101,7 +103,8 @@ def register():
             flash('Username already exists. Please choose another one.', 'warning')
             return redirect(url_for('register'))
         
-        new_user = User(username=username)
+        new_user = User()
+        new_user.username = username
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
@@ -228,66 +231,55 @@ def process_mapping():
     Step 3: Processes the mapping, runs the engine, and displays the results.
     """
     try:
-        # Tarea 10: Check if user has reached the report limit
         report_count = AnalysisReport.query.filter_by(user_id=current_user.id).count()
         if report_count >= 3:
             return render_template('error.html', error_message="You have reached the maximum limit of 3 analysis reports."), 403
 
         inventory_path = session.get('inventory_filepath')
-        rules_path = session.get('rules_filepath') # Get the path of the rules
+        rules_path = session.get('rules_filepath')
 
         if not all([inventory_path, rules_path]):
             return render_template('error.html', error_message="Session expired. Please start over."), 400
 
-        # Create the dictionary to rename columns
         column_mapping = {request.form[key]: key for key in request.form}
-
-        # Load DataFrames
+        
         inventory_df = pd.read_excel(inventory_path)
         inventory_df.rename(columns=column_mapping, inplace=True)
         
-        # Ensure the date column is of the correct type
         if 'creation_date' in inventory_df.columns:
             inventory_df['creation_date'] = pd.to_datetime(inventory_df['creation_date'])
         
         rules_df = pd.read_excel(rules_path)
         
-        # Configure arguments for the engine
-        args = Namespace(
-            debug=False,
-            floating_time=8,
-            straggler_ratio=0.85,
-            stuck_ratio=0.80,
-            stuck_time=6
-        )
+        args = Namespace(debug=False, floating_time=8, straggler_ratio=0.85, stuck_ratio=0.80, stuck_time=6)
         
         anomalies = run_engine(inventory_df, rules_df, args)
-
-        # Tarea 11: Save the new report and its anomalies to the database
+        
+        # ✅ AQUÍ GENERAMOS Y GUARDAMOS EL RESUMEN
+        location_summary = summarize_anomalies_by_location(anomalies)
         report_name = f"Analysis - {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}"
+        
         new_report = AnalysisReport()
-        new_report.report_name = report_name
-        new_report.user_id = current_user.id
+        new_report.report_name=report_name
+        new_report.user_id=current_user.id
+        new_report.location_summary=json.dumps(location_summary) # Guardamos como texto JSON
+        
         db.session.add(new_report)
-        db.session.flush() # Flush to get the new_report.id for the anomalies
+        db.session.flush()
 
         for item in anomalies:
             anomaly = Anomaly()
             if isinstance(item, dict):
-                # For dictionary-based anomalies, create a clean description and store the rest as JSON
                 anomaly.description = item.get('anomaly_type', 'Uncategorized Anomaly')
                 anomaly.details = json.dumps(item)
             else:
-                # For simple string-based anomalies
                 anomaly.description = str(item)
-                anomaly.details = None # No extra details
-
+                anomaly.details = None
             anomaly.report_id = new_report.id
             db.session.add(anomaly)
             
         db.session.commit()
 
-        # Tarea 13: Redirect to the new report view
         return redirect(url_for('view_report', report_id=new_report.id))
 
     except Exception as e:
@@ -296,15 +288,12 @@ def process_mapping():
         return render_template('error.html', error_message=error_msg), 500
     
     finally:
-        # Cleanup of temporary files and session
         for key in ['inventory_filepath', 'rules_filepath', 'user_columns']:
             item = session.pop(key, None)
-            # Make sure the item is a file path and that it exists before trying to delete it.
             if isinstance(item, str) and item.startswith(UPLOAD_FOLDER) and os.path.exists(item):
                 try:
                     os.remove(item)
                 except OSError:
-                    # Do nothing if the file does not exist or there is another error
                     pass
 
 @app.route('/report/<int:report_id>')
@@ -315,10 +304,11 @@ def view_report(report_id):
     """
     report = AnalysisReport.query.get_or_404(report_id)
     if report.user_id != current_user.id:
-        # Prevents users from viewing reports that do not belong to them.
         return render_template('error.html', error_message="You are not authorized to view this report."), 403
     
-    # Pre-process anomalies to handle JSON details
+    # ✅ AQUÍ LEEMOS Y PASAMOS EL RESUMEN A LA PLANTILLA
+    summary_data = json.loads(report.location_summary) if report.location_summary else []
+    
     processed_anomalies = []
     for anomaly in report.anomalies:
         details = {}
@@ -326,15 +316,84 @@ def view_report(report_id):
             try:
                 details = json.loads(anomaly.details)
             except json.JSONDecodeError:
-                details = {'details': 'Invalid format'} # Fallback
+                details = {'details': 'Invalid format'}
         
         processed_anomalies.append({
             'description': anomaly.description,
             'details_data': details
         })
 
-    # The 'results' template is reused to display the stored anomalies.
-    return render_template('results.html', results=processed_anomalies, report_id=report.id)
+    return render_template('results.html', results=processed_anomalies, report_id=report.id, location_summary=summary_data)
+
+@app.route('/report/<int:report_id>/delete', methods=['POST'])
+@login_required
+def delete_report(report_id):
+    """
+    Deletes a specific analysis report from the database.
+    """
+    report = AnalysisReport.query.get_or_404(report_id)
+    if report.user_id != current_user.id:
+        flash("You are not authorized to delete this report.", "danger")
+        return redirect(url_for('dashboard'))
+    
+    try:
+        db.session.delete(report)
+        db.session.commit()
+        flash("Your report has been deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR] deleting report: {e}")
+        flash("An error occurred while deleting the report.", "danger")
+    
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/report/<int:report_id>/location_details/<path:location_name>')
+@login_required
+def get_location_details(report_id, location_name):
+    """
+    API endpoint para obtener detalles de una ubicación específica de un reporte.
+    """
+    # 1. Buscar el reporte y verificar permisos
+    report = AnalysisReport.query.get_or_404(report_id)
+    if report.user_id != current_user.id:
+        return {"error": "Unauthorized"}, 403
+
+    # Si el nombre de la ubicación es 'N/A', necesitamos manejarlo de forma especial
+    # ya que la URL no puede contener el carácter '/' directamente.
+    # Por ahora, asumimos que no hay problemas de codificación.
+
+    # 2. Filtrar las anomalías para la ubicación específica
+    location_anomalies = []
+    for anomaly in report.anomalies:
+        if not anomaly.details:
+            continue
+
+        details = json.loads(anomaly.details)
+        # Comparamos ignorando mayúsculas/minúsculas y espacios
+        if details.get('location', '').strip().upper() == location_name.strip().upper():
+            location_anomalies.append(details)
+
+    if not location_anomalies:
+        return {"error": "No anomalies found for this location"}, 404
+
+    # 3. Procesar los datos para el frontend
+    pallet_list = sorted(list(set([d.get('pallet_id', 'N/A') for d in location_anomalies])))
+
+    anomaly_types = [d.get('anomaly_type', 'Unknown') for d in location_anomalies]
+    anomaly_counts = pd.Series(anomaly_types).value_counts()
+
+    chart_data = {
+        'labels': anomaly_counts.index.tolist(),
+        'data': anomaly_counts.values.tolist()
+    }
+
+    # 4. Devolver los datos como JSON
+    return {
+        "location": location_name,
+        "pallets": pallet_list,
+        "chart": chart_data
+    }
 
 
 # --- Entry Point to Run the Application ---

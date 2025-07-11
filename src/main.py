@@ -243,6 +243,40 @@ def run_engine(inventory_df, rules_df, args):
     print(f"✅ Engine finished. Found {len(unique_anomalies)} unique anomalies.")
     return unique_anomalies
 
+def summarize_anomalies_by_location(anomalies):
+    """
+    Transforms the list of anomalies into a strategic summary by location.
+    """
+    if not anomalies:
+        return []
+
+    anomalies_df = pd.DataFrame(anomalies)
+    grouped = anomalies_df.groupby('location')
+    
+    summary_list = []
+    priority_map = {'VERY HIGH': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
+    reverse_priority_map = {v: k for k, v in priority_map.items()}
+
+    for location_name, group in grouped:
+        anomaly_count = len(group)
+        main_anomaly = group['anomaly_type'].mode()[0]
+        
+        # Map text priorities to numbers, find the max, and convert back to text
+        highest_priority_num = group['priority'].apply(lambda p: priority_map[p]).max()
+        highest_priority = reverse_priority_map[int(highest_priority_num)]
+        
+        summary_list.append({
+            'location_name': location_name,
+            'anomaly_count': anomaly_count,
+            'main_anomaly': main_anomaly,
+            'highest_priority': highest_priority
+        })
+        
+    # Sort the summary by the number of anomalies in descending order
+    summary_list.sort(key=lambda x: x['anomaly_count'], reverse=True)
+    
+    return summary_list
+
 def display_report(anomalies):
     """
     Displays the final anomaly report in a clear and readable way.
