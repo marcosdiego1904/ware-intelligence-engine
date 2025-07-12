@@ -27,10 +27,24 @@ app = Flask(__name__, template_folder=_template_folder)
 
 # Database and Login Manager Configuration
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key-insecure')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../instance/database.db'
+
+# Environment-aware configuration for database and uploads
+IS_VERCEL = os.environ.get('VERCEL') == '1'
+
+if IS_VERCEL:
+    # Vercel environment: use the /tmp directory for the database
+    db_path = os.path.join('/tmp', 'database.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+else:
+    # Local environment: use the instance folder
+    instance_path = os.path.join(_project_root, 'instance')
+    os.makedirs(instance_path, exist_ok=True)
+    db_path = os.path.join(instance_path, 'database.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-login_manager = LoginManager()
+login_manager = LoginManager(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login' # type: ignore
 
@@ -121,8 +135,13 @@ def logout():
 
 
 # --- File Path Configuration ---
-# Use the system's temporary directory for uploaded files.
-UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'wie_uploads')
+if IS_VERCEL:
+    # Vercel-specific path for uploads
+    UPLOAD_FOLDER = os.path.join('/tmp', 'wie_uploads')
+else:
+    # Local path for uploads
+    UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'wie_uploads')
+
 DEFAULT_RULES_PATH = os.path.join(_data_folder, 'warehouse_rules.xlsx')
 DEFAULT_INVENTORY_PATH = os.path.join(_data_folder, 'inventory_report.xlsx')
 
