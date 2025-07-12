@@ -32,7 +32,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'login' # type: ignore
+
 
 # --- Database Models ---
 class User(db.Model, UserMixin):
@@ -224,6 +225,12 @@ def mapping():
     return render_template('mapping.html', user_columns=user_columns)
 
 
+def default_json_serializer(obj):
+    """JSON serializer for objects not serializable by default json code"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Type {type(obj).__name__} not serializable")
+
 @app.route('/process', methods=['POST'])
 @login_required
 def process_mapping():
@@ -232,7 +239,7 @@ def process_mapping():
     """
     try:
         report_count = AnalysisReport.query.filter_by(user_id=current_user.id).count()
-        if report_count >= 3:
+        if report_count >= 3 and current_user.username != 'marcosbarzola@devbymarcos.com':
             return render_template('error.html', error_message="You have reached the maximum limit of 3 analysis reports."), 403
 
         inventory_path = session.get('inventory_filepath')
@@ -271,7 +278,7 @@ def process_mapping():
             anomaly = Anomaly()
             if isinstance(item, dict):
                 anomaly.description = item.get('anomaly_type', 'Uncategorized Anomaly')
-                anomaly.details = json.dumps(item)
+                anomaly.details = json.dumps(item, default=default_json_serializer)
             else:
                 anomaly.description = str(item)
                 anomaly.details = None
@@ -300,30 +307,66 @@ def process_mapping():
 @login_required
 def view_report(report_id):
     """
-    Displays a specific analysis report and its anomalies.
+    Displays a specific past analysis report from the database.
     """
     report = AnalysisReport.query.get_or_404(report_id)
+
+    # Security check: Ensure the current user is the author of the report
     if report.user_id != current_user.id:
-        return render_template('error.html', error_message="You are not authorized to view this report."), 403
-    
-    # ✅ AQUÍ LEEMOS Y PASAMOS EL RESUMEN A LA PLANTILLA
-    summary_data = json.loads(report.location_summary) if report.location_summary else []
-    
+        flash("You do not have permission to view this report.", "danger")
+        return redirect(url_for('dashboard'))
+
+    # The anomalies are stored as Anomaly objects in the report.anomalies relationship
+    # We need to reconstruct the format that the template expects, including 'details_data'
     processed_anomalies = []
     for anomaly in report.anomalies:
-        details = {}
-        if anomaly.details:
-            try:
-                details = json.loads(anomaly.details)
-            except json.JSONDecodeError:
-                details = {'details': 'Invalid format'}
-        
-        processed_anomalies.append({
-            'description': anomaly.description,
-            'details_data': details
-        })
+        try:
+            # The 'details' attribute of the Anomaly model stores a JSON string
+            details_data = json.loads(anomaly.details) if anomaly.details else {}
+            processed_anomalies.append({
+                'description': anomaly.description,
+                'details_data': details_data
+            })
+        except json.JSONDecodeError:
+            # Handle cases where 'details' might not be a valid JSON string
+            processed_anomalies.append({
+                'description': anomaly.description,
+                'details_data': {'details': 'Error reading anomaly details.'}
+            })
 
-    return render_template('results.html', results=processed_anomalies, report_id=report.id, location_summary=summary_data)
+    # The location summary is stored as a JSON string
+    summary_data = json.loads(report.location_summary) if report.location_summary else []
+
+    # --- INICIO: LÓGICA DE KPIs ---
+    kpis = {
+        'total_anomalies': len(processed_anomalies),
+        'high_priority_count': 0,
+        'critical_locations': 0,
+        'main_problem': 'N/A'
+    }
+
+    if processed_anomalies:
+        # Contar anomalías de alta prioridad (VERY HIGH o HIGH)
+        high_priority_list = ['VERY HIGH', 'HIGH']
+        kpis['high_priority_count'] = sum(1 for anomaly in processed_anomalies if anomaly['details_data'].get('priority') in high_priority_list)
+
+        # Contar ubicaciones únicas con problemas
+        locations_with_anomalies = set(anomaly['details_data'].get('location', 'N/A') for anomaly in processed_anomalies)
+        kpis['critical_locations'] = len(locations_with_anomalies)
+
+        # Encontrar el tipo de anomalía más común
+        if processed_anomalies:
+            anomaly_types = [anomaly['description'] for anomaly in processed_anomalies]
+            kpis['main_problem'] = max(set(anomaly_types), key=anomaly_types.count)
+    # --- FIN: LÓGICA DE KPIs ---
+    
+    return render_template('results.html', 
+                           report=report, 
+                           results=processed_anomalies, 
+                           location_summary=summary_data,
+                           report_id=report.id,
+                           kpis=kpis)
+
 
 @app.route('/report/<int:report_id>/delete', methods=['POST'])
 @login_required
