@@ -133,7 +133,7 @@
                 </div>
             <div id="anomalies-grid" class="results-grid">
                 {% for result in results %}
-                    <div class="anomaly-card card priority-{{ result.details_data.get('priority', 'MEDIUM') }}">
+                    <div id="anomaly-card-{{ result.id }}" class="anomaly-card card priority-{{ result.details_data.get('priority', 'MEDIUM') }}">
                         <div> <span class="priority-tag bg-{{ result.details_data.get('priority', 'MEDIUM') }}">{{ result.details_data.get('priority', 'MEDIUM') }}</span>
                             <div class="pallet-info mt-2">Pallet: {{ result.details_data.get('pallet_id', 'N/A') }}</div>
                             <div class="location-info">At: {{ result.details_data.get('location', 'N/A') }}</div>
@@ -141,8 +141,8 @@
                                 <strong>{{ result.description }}:</strong> {{ result.details_data.get('details', 'No additional details.') }}
                             </p>
                         </div>
-                        <div> <div class="completion-toggle" title="Mark as resolved">
-                                 </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleResolveAnomaly({{ result.id }})">Resolve</button>
                         </div>
                     </div>
                 {% endfor %}
@@ -176,8 +176,59 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Lógica para marcar como completado (tu código existente)
-    // ...
+    window.toggleResolveAnomaly = async (anomalyId) => {
+    const card = document.getElementById(`anomaly-card-${anomalyId}`);
+    const button = card.querySelector('button[onclick*="toggleResolveAnomaly"]'); // Selector más robusto
+    
+    // Guardamos el estado original para poder revertir en caso de error
+    const originalClasses = button.className;
+    const originalText = button.textContent;
+    const wasResolved = card.classList.contains('anomaly-resolved');
+
+    // 1. Actualización Visual Inmediata (Optimistic Update)
+    card.classList.toggle('anomaly-resolved');
+    const isNowResolved = !wasResolved;
+
+    if (isNowResolved) {
+        button.textContent = 'Resolved';
+        button.className = 'text-xs font-semibold px-3 py-1.5 rounded-md bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 transition-opacity';
+    } else {
+        // Lógica para "reabrir" una anomalía si es necesario
+        button.textContent = 'Resolve';
+        button.className = 'text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80 transition-opacity';
+    }
+    button.disabled = true; // Desactivar mientras se procesa
+
+    // 2. Llamada a la API para persistir el cambio
+    try {
+        const response = await fetch(`/api/anomaly/${anomalyId}/resolve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Si usas Flask-WTF, necesitarás un header CSRF aquí
+            },
+        });
+
+        if (!response.ok) {
+            // Si el servidor devuelve un error, lanzamos una excepción
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+        
+        // Éxito: El cambio se guardó en el backend. Reactivamos el botón.
+        button.disabled = false;
+
+    } catch (error) {
+        // 3. Manejo de Errores: Si algo falla, revertimos la UI
+        console.error("Failed to resolve anomaly:", error);
+        alert("Error: Could not update anomaly status. Please try again.");
+        
+        // Revertir los cambios visuales al estado original
+        card.classList.toggle('anomaly-resolved', wasResolved); // Vuelve al estado anterior
+        button.textContent = originalText;
+        button.className = originalClasses;
+        button.disabled = false;
+    }
+};
 });
 </script>
 {% endblock %}

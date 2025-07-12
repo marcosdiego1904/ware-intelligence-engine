@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard V2 - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        // Tailwind dark mode config
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        /* Fade-in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        /* Style for resolved cards */
+        .anomaly-resolved {
+            opacity: 0.6;
+            background-color: #f8fafc;
+        }
+        .dark .anomaly-resolved {
+            background-color: #1e293b;
+        }
+        .anomaly-resolved h4, .anomaly-resolved p {
+            text-decoration: line-through;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+    <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white">Pallet History: <span id="modal-pallet-id"></span></h3>
+                <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800 dark:hover:text-white">&times;</button>
+            </div>
+            <div id="modal-content" class="text-sm text-slate-600 dark:text-slate-400">
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+
+        <header class="flex flex-wrap justify-between items-center gap-4 mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Discrepancy Dashboard</h1>
+                <p id="report-name" class="text-slate-500 dark:text-slate-400 mt-1">Loading report...</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <input type="text" id="search-bar" placeholder="Search Pallet ID..." class="w-48 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="dark-mode-toggle" class="p-2 rounded-lg bg-slate-200 dark:bg-slate-700">
+                </button>
+            </div>
+        </header>
+
+        <section id="kpi-section" class="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 mb-4">
+        </section>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            <aside class="lg:col-span-1 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 h-fit">
+                <h2 class="text-xl font-bold mb-1 text-slate-900 dark:text-white">Critical Locations</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Select an area to view its details.</p>
+                <ul id="hotspots-list" class="space-y-2"></ul>
+            </aside>
+
+            <section id="details-panel" class="lg:col-span-2 space-y-4">
+                
+                <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-4">Anomalies in <span id="selected-location-name" class="text-blue-500">...</span></h3>
+                    <div class="h-64"><canvas id="anomaliesChart"></canvas></div>
+                </div>
+
+                <div>
+                    <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Affected Pallets</h3>
+                        <div id="filter-buttons" class="flex items-center gap-2 flex-wrap">
+                        </div>
+                    </div>
+                    <div id="anomalies-list" class="space-y-4"></div>
+                </div>
+            </section>
+        </main>
+        
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- GLOBAL STATE & CONFIG ---
+            let currentFilter = 'ALL';
+            let currentLocation = null;
+            let reportData = {}; // Report data will be loaded here.
+            let anomaliesChartInstance = null;
+            const reportId = {{ report_id|tojson }};
+
+            const priorityStyles = {
+                'VERY HIGH': { text: 'VERY HIGH', bg: 'bg-red-100 dark:bg-red-900/50', textColor: 'text-red-800 dark:text-red-300', border: 'border-red-500' },
+                'HIGH': { text: 'HIGH', bg: 'bg-orange-100 dark:bg-orange-900/50', textColor: 'text-orange-800 dark:text-orange-300', border: 'border-orange-500' },
+                'MEDIUM': { text: 'MEDIUM', bg: 'bg-blue-100 dark:bg-blue-900/50', textColor: 'text-blue-800 dark:text-blue-300', border: 'border-blue-500' },
+                'LOW': { text: 'LOW', bg: 'bg-slate-200 dark:bg-slate-700', textColor: 'text-slate-800 dark:text-slate-300', border: 'border-slate-400' }
+            };
+
+            const chartColors = {
+                'Floating Pallet': 'rgba(253, 186, 116, 0.8)', 'Lot Straggler': 'rgba(252, 165, 165, 0.8)', 'Product-Location Incompatibility': 'rgba(191, 219, 254, 0.8)', 'Over-capacity Location': 'rgba(148, 163, 184, 0.8)', 'Stuck in Transit': 'rgba(249, 115, 22, 0.8)', 'Unknown Location': 'rgba(239, 68, 68, 0.8)', 'Missing Location': 'rgba(185, 28, 28, 0.8)'
+            };
+
+            // --- RENDER LOGIC ---
+            function renderAll() {
+                renderKPIs();
+                renderHotspotsList();
+                if (reportData.locations && reportData.locations.length > 0) {
+                    const firstLocationName = reportData.locations[0].name;
+                    selectLocation(firstLocationName);
+                } else {
+                    // Handle case with no locations
+                    document.getElementById('details-panel').innerHTML = '<p class="text-center text-slate-500">No anomalies found in this report.</p>';
+                }
+            }
+
+            function renderKPIs() {
+                const kpiContainer = document.getElementById('kpi-section');
+                kpiContainer.innerHTML = reportData.kpis.map(kpi => `
+                    <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 fade-in">
+                        <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">${kpi.label}</p>
+                        <p class="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mt-1">${kpi.value}</p>
+                    </div>
+                `).join('');
+            }
+
+            function renderHotspotsList() {
+                const hotspotsList = document.getElementById('hotspots-list');
+                hotspotsList.innerHTML = reportData.locations.map((location, index) => `
+                    <li id="hotspot-${location.name.replace(/[^a-zA-Z0-9]/g, '')}"
+                        class="hotspot-item flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-700 fade-in"
+                        style="animation-delay: ${index * 50}ms"
+                        onclick="selectLocation('${location.name}')">
+                        <span class="font-semibold">${location.name}</span>
+                        <span class="text-sm font-bold bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 px-2.5 py-1 rounded-full">${location.anomaly_count}</span>
+                    </li>
+                `).join('');
+            }
+
+            function renderLocationDetails(locationName) {
+                document.getElementById('selected-location-name').textContent = locationName;
+                const locationData = reportData.locations.find(l => l.name === locationName);
+                if (!locationData) return;
+
+                const anomalies = locationData.anomalies || [];
+                renderAnomaliesChart(anomalies);
+                renderFilterButtons();
+                let anomaliesToRender = anomalies;
+                if (currentFilter !== 'ALL') {
+                    anomaliesToRender = anomalies.filter(a => a.priority === currentFilter);
+                }
+                renderAnomaliesList(anomaliesToRender);
+            }
+
+            function renderAnomaliesList(anomalies) {
+                const container = document.getElementById('anomalies-list');
+                if (anomalies.length === 0) {
+                    container.innerHTML = '<div class="text-center py-8 bg-white dark:bg-slate-800 rounded-lg"><p class="text-slate-500">No anomalies for the selected filter.</p></div>';
+                    return;
+                }
+                container.innerHTML = anomalies.map((anomaly, index) => {
+                    const style = priorityStyles[anomaly.priority] || priorityStyles.LOW;
+                    const isResolved = anomaly.resolved;
+                    const resolvedClass = isResolved ? 'anomaly-resolved' : '';
+                    const buttonText = isResolved ? 'Resolved' : 'Resolve';
+                    const buttonStyle = isResolved 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80';
+
+                    return `
+                        <div id="anomaly-card-${anomaly.id}" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${style.border} border-l-4 p-4 transition-all hover:shadow-md dark:border-slate-700 ${resolvedClass} fade-in" style="animation-delay: ${index * 50}ms">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-lg text-slate-900 dark:text-white">${anomaly.anomaly_type}</h4>
+                                <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${style.bg} ${style.textColor}">${style.text}</span>
+                            </div>
+                            <p class="text-slate-600 dark:text-slate-400 mt-1 mb-3">${anomaly.details}</p>
+                            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+                                <div class="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                                    Pallet ID: <span class="font-bold text-slate-800 dark:text-slate-200">${anomaly.pallet_id}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button id="resolve-btn-${anomaly.id}" onclick="toggleResolveAnomaly('${anomaly.id}')" class="text-xs font-semibold px-3 py-1.5 rounded-md ${buttonStyle} transition-opacity" ${isResolved ? 'disabled' : ''}>${buttonText}</button>
+                                    <button onclick="showHistoryModal('${anomaly.pallet_id}')" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80 transition-opacity">History</button>
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            function renderAnomaliesChart(anomalies) {
+                const ctx = document.getElementById('anomaliesChart').getContext('2d');
+                const counts = anomalies.reduce((acc, anomaly) => { acc[anomaly.anomaly_type] = (acc[anomaly.anomaly_type] || 0) + 1; return acc; }, {});
+                const labels = Object.keys(counts);
+                const data = Object.values(counts);
+                const backgroundColors = labels.map(label => chartColors[label] || 'rgba(203, 213, 225, 0.8)');
+
+                if (anomaliesChartInstance) anomaliesChartInstance.destroy();
+                anomaliesChartInstance = new Chart(ctx, {
+                    type: 'bar', data: { labels, datasets: [{ label: 'Number of Anomalies', data, backgroundColor: backgroundColors, borderWidth: 1, borderRadius: 5 }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                        scales: { x: { beginAtZero: true, ticks: { stepSize: 1, color: '#94a3b8' } }, y: { grid: { display: false }, ticks: { color: '#94a3b8' } } },
+                        plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 12 }, padding: 12, cornerRadius: 8 } }
+                    }
+                });
+            }
+            
+            function renderFilterButtons() {
+                const container = document.getElementById('filter-buttons');
+                const priorities = ['ALL', 'VERY HIGH', 'HIGH', 'MEDIUM', 'LOW'];
+                container.innerHTML = priorities.map(p => {
+                    const isActive = currentFilter === p;
+                    const style = priorityStyles[p] || {text: 'All', bg: 'bg-slate-200 dark:bg-slate-600', textColor: 'text-slate-800 dark:text-slate-100'};
+                    const activeClass = isActive ? 'ring-2 ring-blue-500' : '';
+                    return `<button onclick="setFilter('${p}')" class="text-xs font-bold uppercase px-3 py-1.5 rounded-full ${style.bg} ${style.textColor} ${activeClass} transition-all">${style.text}</button>`;
+                }).join('');
+            }
+
+            // --- INTERACTION LOGIC ---
+            window.selectLocation = (locationName) => {
+                currentLocation = locationName;
+                document.querySelectorAll('.hotspot-item').forEach(item => item.classList.remove('bg-blue-100', 'dark:bg-blue-900/50'));
+                const safeId = locationName.replace(/[^a-zA-Z0-9]/g, '');
+                document.getElementById(`hotspot-${safeId}`).classList.add('bg-blue-100', 'dark:bg-blue-900/50');
+                renderLocationDetails(locationName);
+            };
+
+            window.setFilter = (priority) => {
+                currentFilter = priority;
+                renderLocationDetails(currentLocation);
+            };
+
+            window.toggleResolveAnomaly = async (anomalyId) => {
+                const card = document.getElementById(`anomaly-card-${anomalyId}`);
+                const button = document.getElementById(`resolve-btn-${anomalyId}`);
+                if (!card || !button || button.disabled) return;
+
+                // Optimistic UI update
+                card.classList.add('anomaly-resolved');
+                button.textContent = 'Resolved';
+                button.disabled = true;
+                button.classList.remove('bg-slate-100', 'text-slate-700', 'dark:bg-slate-700', 'dark:text-slate-200', 'hover:opacity-80');
+                button.classList.add('bg-green-100', 'text-green-800', 'dark:bg-green-900/50', 'dark:text-green-300');
+
+                try {
+                    const response = await fetch(`/api/anomaly/${anomalyId}/resolve`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to resolve anomaly.');
+                    }
+                    // On success, the UI is already updated optimistically.
+                } catch (error) {
+                    console.error("Error resolving anomaly:", error);
+                    
+                    // Revert UI changes on failure
+                    card.classList.remove('anomaly-resolved');
+                    button.textContent = 'Resolve';
+                    button.disabled = false;
+                    button.classList.add('bg-slate-100', 'text-slate-700', 'dark:bg-slate-700', 'dark:text-slate-200', 'hover:opacity-80');
+                    button.classList.remove('bg-green-100', 'text-green-800', 'dark:bg-green-900/50', 'dark:text-green-300');
+                    // Consider showing a user-facing error message here.
+                }
+            };
+
+            window.showHistoryModal = (palletId) => {
+                document.getElementById('modal-pallet-id').textContent = palletId;
+                document.getElementById('modal-content').innerHTML = `<p>History for ${palletId} will be displayed here. This functionality requires a backend adaptation.</p>`;
+                document.getElementById('history-modal').classList.remove('hidden');
+            };
+
+            window.closeModal = () => {
+                document.getElementById('history-modal').classList.add('hidden');
+            };
+
+            // --- DARK MODE ---
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
+            const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>`;
+
+            function applyTheme(theme) {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    darkModeToggle.innerHTML = sunIcon;
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    darkModeToggle.innerHTML = moonIcon;
+                }
+            }
+
+            darkModeToggle.addEventListener('click', () => {
+                const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+                localStorage.setItem('theme', newTheme);
+                applyTheme(newTheme);
+            });
+            
+             // --- Pallet Search ---
+            const searchBar = document.getElementById('search-bar');
+            searchBar.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toUpperCase();
+                document.querySelectorAll('#anomalies-list > div').forEach(card => {
+                    const palletId = card.querySelector('.text-sm.font-semibold.text-slate-500 span').textContent;
+                    if (palletId.toUpperCase().includes(searchTerm)) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+
+            // --- INITIALIZATION ---
+            async function initializeDashboard() {
+                document.getElementById('report-name').textContent = "Loading report data...";
+                // Load saved theme or system preference
+                const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                applyTheme(savedTheme);
+
+                try {
+                    // We use the API you already created to get the details.
+                    const response = await fetch(`/report/${reportId}/details`);
+                    if (!response.ok) throw new Error('Failed to load report data.');
+                    
+                    reportData = await response.json();
+                    document.getElementById('report-name').textContent = reportData.reportName;
+                    renderAll();
+
+                } catch (error) {
+                    console.error("Error initializing dashboard:", error);
+                    document.getElementById('report-name').textContent = "Error loading report.";
+                    document.getElementById('kpi-section').innerHTML = `<p class="text-red-500 col-span-full text-center">${error.message}</p>`;
+                }
+            }
+
+            initializeDashboard();
+        });
+    </script>
+
+</body>
+{% endblock %}

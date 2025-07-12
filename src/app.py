@@ -4,7 +4,7 @@ import sys
 import tempfile
 import json
 from datetime import datetime
-from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory, flash
+from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory, flash, jsonify 
 import pandas as pd
 from argparse import Namespace
 from flask_sqlalchemy import SQLAlchemy
@@ -75,6 +75,8 @@ class Anomaly(db.Model):
     description = db.Column(db.String(255), nullable=False)
     details = db.Column(db.Text, nullable=True) # Could store JSON or other details
     report_id = db.Column(db.Integer, db.ForeignKey('analysis_report.id'), nullable=False)
+    resolved = db.Column(db.Boolean, default=False, nullable=False)
+    resolved_at = db.Column(db.DateTime, nullable=True)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -330,61 +332,13 @@ def view_report(report_id):
     """
     report = AnalysisReport.query.get_or_404(report_id)
 
-    # Security check: Ensure the current user is the author of the report
+    # Security check
     if report.user_id != current_user.id:
         flash("You do not have permission to view this report.", "danger")
         return redirect(url_for('dashboard'))
 
-    # The anomalies are stored as Anomaly objects in the report.anomalies relationship
-    # We need to reconstruct the format that the template expects, including 'details_data'
-    processed_anomalies = []
-    for anomaly in report.anomalies:
-        try:
-            # The 'details' attribute of the Anomaly model stores a JSON string
-            details_data = json.loads(anomaly.details) if anomaly.details else {}
-            processed_anomalies.append({
-                'description': anomaly.description,
-                'details_data': details_data
-            })
-        except json.JSONDecodeError:
-            # Handle cases where 'details' might not be a valid JSON string
-            processed_anomalies.append({
-                'description': anomaly.description,
-                'details_data': {'details': 'Error reading anomaly details.'}
-            })
-
-    # The location summary is stored as a JSON string
-    summary_data = json.loads(report.location_summary) if report.location_summary else []
-
-    # --- INICIO: LÓGICA DE KPIs ---
-    kpis = {
-        'total_anomalies': len(processed_anomalies),
-        'high_priority_count': 0,
-        'critical_locations': 0,
-        'main_problem': 'N/A'
-    }
-
-    if processed_anomalies:
-        # Contar anomalías de alta prioridad (VERY HIGH o HIGH)
-        high_priority_list = ['VERY HIGH', 'HIGH']
-        kpis['high_priority_count'] = sum(1 for anomaly in processed_anomalies if anomaly['details_data'].get('priority') in high_priority_list)
-
-        # Contar ubicaciones únicas con problemas
-        locations_with_anomalies = set(anomaly['details_data'].get('location', 'N/A') for anomaly in processed_anomalies)
-        kpis['critical_locations'] = len(locations_with_anomalies)
-
-        # Encontrar el tipo de anomalía más común
-        if processed_anomalies:
-            anomaly_types = [anomaly['description'] for anomaly in processed_anomalies]
-            kpis['main_problem'] = max(set(anomaly_types), key=anomaly_types.count)
-    # --- FIN: LÓGICA DE KPIs ---
-    
-    return render_template('results.html', 
-                           report=report, 
-                           results=processed_anomalies, 
-                           location_summary=summary_data,
-                           report_id=report.id,
-                           kpis=kpis)
+    # Renderiza el nuevo template, pasando solo el ID del reporte
+    return render_template('results_v2.html', report_id=report.id)
 
 
 @app.route('/report/<int:report_id>/delete', methods=['POST'])
@@ -408,6 +362,22 @@ def delete_report(report_id):
         flash("An error occurred while deleting the report.", "danger")
     
     return redirect(url_for('dashboard'))
+
+
+@app.route('/api/anomaly/<int:anomaly_id>/resolve', methods=['POST'])
+@login_required
+def resolve_anomaly(anomaly_id):
+    anomaly = Anomaly.query.get_or_404(anomaly_id)
+    
+    # Verify that the anomaly belongs to a report owned by the current user
+    if anomaly.report.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+        
+    anomaly.resolved = True
+    anomaly.resolved_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Anomaly resolved successfully.'})
 
 
 @app.route('/report/<int:report_id>/location_details/<path:location_name>')
@@ -456,7 +426,57 @@ def get_location_details(report_id, location_name):
         "pallets": pallet_list,
         "chart": chart_data
     }
+@app.route('/report/<int:report_id>/details')
+@login_required
+def get_report_details(report_id):
+    report = AnalysisReport.query.get_or_404(report_id)
+    if report.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized"}), 403
 
+    # Procesar anomalías
+    processed_anomalies = []
+    for anomaly in report.anomalies:
+        try:
+            details_data = json.loads(anomaly.details) if anomaly.details else {}
+            # Important: Add the database ID and resolved status to the payload
+            details_data['id'] = anomaly.id
+            details_data['resolved'] = anomaly.resolved
+            details_data['resolved_at'] = anomaly.resolved_at.isoformat() if anomaly.resolved_at else None
+            processed_anomalies.append(details_data)
+        except json.JSONDecodeError:
+            continue
+
+    # Agrupar anomalías por ubicación
+    locations_map = {}
+    for anomaly in processed_anomalies:
+        location = anomaly.get('location', 'N/A')
+        if location not in locations_map:
+            locations_map[location] = []
+        locations_map[location].append(anomaly)
+
+    # Formatear resumen de ubicaciones
+    location_summary = sorted(
+        [{"name": name, "anomaly_count": len(anoms), "anomalies": anoms} for name, anoms in locations_map.items()],
+        key=lambda x: x['anomaly_count'],
+        reverse=True
+    )
+
+    # Calcular KPIs
+    high_priority_list = ['VERY HIGH', 'HIGH']
+    kpis = [
+        {'label': 'Total Anomalies', 'value': len(processed_anomalies)},
+        {'label': 'Priority Alerts', 'value': sum(1 for a in processed_anomalies if a.get('priority') in high_priority_list)},
+        {'label': 'Affected Locations', 'value': len(location_summary)},
+        {'label': 'Main Issue', 'value': max(set(a['anomaly_type'] for a in processed_anomalies), key=lambda t: [a['anomaly_type'] for a in processed_anomalies].count(t)) if processed_anomalies else 'N/A'},
+        {'label': 'Avg. Resolution Time', 'value': 'N/A'} # KPI simulado
+    ]
+
+    return jsonify({
+        "reportId": report.id,
+        "reportName": report.report_name,
+        "kpis": kpis,
+        "locations": location_summary
+    })
 
 # --- Entry Point to Run the Application ---
 if __name__ == '__main__':
