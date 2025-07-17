@@ -1,20 +1,12 @@
-# Backend Framework
 Flask==2.2.2
-Werkzeug
-Flask-Login
-Flask-SQLAlchemy
-
-# Data Processing
-polars-lts-cpu==0.20.31 # O la versión estable más reciente
+polars-lts-cpu==0.20.31
 connectorx==0.4.3
 openpyxl
-
-# Database & Security
+Flask-SQLAlchemy
 SQLAlchemy
 mysql-connector-python
+Flask-Login
+Werkzeug
 cryptography
-psycopg2-binary
-
-# Utilities
 requests
 python-dotenv==0.21.0
