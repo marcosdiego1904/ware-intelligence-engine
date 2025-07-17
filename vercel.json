@@ -9,7 +9,14 @@
         "includeFiles": [
           "src/templates/**",
           "src/static/**",
-          "data/**"
+          "data/mock_api_data.json"
+        ],
+        "excludeFiles": [
+          "data/*.xlsx",
+          "instance/**",
+          "venv/**",
+          "tests/**",
+          ".git/**"
         ]
       }
     }
