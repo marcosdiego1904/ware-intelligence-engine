@@ -5,7 +5,7 @@ Flask-Login
 Flask-SQLAlchemy
 
 # Data Processing
-polars==0.19.12
+polars-lts-cpu==0.20.31 # O la versión estable más reciente
 connectorx==0.4.3
 openpyxl
 
