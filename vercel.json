@@ -1,21 +1,15 @@
 {
-  "builds": [
-    {
-      "src": "src/app.py",
-      "use": "@vercel/python",
-      "config": {
-        "runtime": "python3.9",
-        "includeFiles": [
-          "src/templates/**",
-          "src/static/**"
-        ]
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "src/app.py"
-    }
-  ]
+    "version": 2,
+    "builds": [
+        {
+            "src": "/index.py",
+            "use": "@vercel/python"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/(.*)",
+            "dest": "/index.py"
+        }
+    ]
 } 
