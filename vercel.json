@@ -4,19 +4,10 @@
       "src": "src/app.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb",
         "runtime": "python3.9",
         "includeFiles": [
           "src/templates/**",
-          "src/static/**",
-          "data/mock_api_data.json"
-        ],
-        "excludeFiles": [
-          "data/*.xlsx",
-          "instance/**",
-          "venv/**",
-          "tests/**",
-          ".git/**"
+          "src/static/**"
         ]
       }
     }
