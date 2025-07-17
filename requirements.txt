@@ -4,7 +4,7 @@ Flask-SQLAlchemy
 SQLAlchemy
 PyMySQL
 Flask-Login
-Werkzeug
+Werkzeug==2.2.3
 cryptography
 requests
 python-dotenv==0.21.0
