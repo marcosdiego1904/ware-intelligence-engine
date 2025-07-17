@@ -1,0 +1,101 @@
+﻿Plan de Migración: De Pandas a Polars - Estrategia de Ejecución
+Mentalidad: La Disciplina del Rendimiento
+Esta migración no es una tarea técnica, es una mejora estratégica de tu activo digital. Cada línea de código que optimizas, cada milisegundo que recortas en el tiempo de respuesta, es una ventaja competitiva. Polars está construido sobre Rust con un enfoque en la paralelización y la eficiencia de la memoria. Al adoptarlo, dejas de ser un simple programador y te conviertes en un ingeniero que construye sistemas de alto rendimiento.
+Fase 1: Preparación del Entorno (5 minutos)
+Un profesional no improvisa. Prepara el terreno antes de la batalla.
+1. Control de Versiones: Crea una nueva rama en tu repositorio. El trabajo se hace aquí. La rama main debe permanecer impecable hasta que la misión esté completa.
+git checkout -b feature/migrate-to-polars
+
+2. Actualizar Dependencias: Modifica tu archivo requirements.txt. Vas a eliminar al jugador lento y a traer a tu estrella.
+   * Elimina: pandas
+   * Añade: polars y connectorx. connectorx es un paquete que acelera radicalmente la lectura de bases de datos en polars, convirtiendo la operación en algo casi instantáneo.
+Tu requirements.txt debería verse así:Flask==2.2.2
+psycopg2-binary==2.9.5
+requests==2.28.1
+python-dotenv==0.21.0
+polars==0.19.12 # O la versión estable más reciente
+connectorx==0.3.1 # O la versión estable más reciente
+# ... otras dependencias
+
+   3. Sincronizar Entorno Virtual: Limpia las dependencias viejas e instala las nuevas.
+pip install -r requirements.txt
+
+Fase 2: Refactorización Quirúrgica del Código
+Aquí es donde se gana la guerra. Atacaremos los archivos clave donde reside pandas.
+Objetivo 1: src/connectors.py
+Este archivo es el responsable de inyectar datos a tu aplicación. Lo haremos más rápido.
+      * APIConnector.fetch_data:
+      * Antes (Pandas):
+import pandas as pd
+# ...
+response = requests.get(self.api_url)
+data = response.json()
+return pd.json_normalize(data)
+
+      * Después (Polars): polars puede ingerir diccionarios directamente. Es más limpio y directo.
+import polars as pl
+# ...
+response = requests.get(self.api_url)
+data = response.json()
+return pl.from_dicts(data)
+
+         * DatabaseConnector.fetch_data:
+         * Antes (Pandas):
+import pandas as pd
+# ...
+return pd.read_sql(query, self.connection)
+
+         * Después (Polars con ConnectorX): Usaremos pl.read_database. connectorx trabajará bajo el capó para darnos una velocidad brutal. La sintaxis es casi idéntica, pero el rendimiento es de otro nivel.
+import polars as pl
+# ...
+return pl.read_database(query=query, connection=self.connection)
+
+Objetivo 2: src/main.py
+Este es el cerebro de tu lógica de negocio. Lo haremos más inteligente y eficiente usando el motor de expresiones de polars.
+            * Unión de Datos (merge -> join):
+            * Antes (Pandas):
+merged_data = pd.merge(api_data, db_data, on='product_id')
+
+            * Después (Polars): La sintaxis es similar, pero la operación es mucho más rápida.
+# Asegúrate de que los tipos de datos de 'product_id' coincidan si es necesario
+# api_data = api_data.with_columns(pl.col("product_id").cast(pl.Int64))
+# db_data = db_data.with_columns(pl.col("product_id").cast(pl.Int64))
+merged_data = api_data.join(db_data, on='product_id')
+
+               * Cálculo de Columnas (Operaciones vectoriales -> Expresiones):
+               * Antes (Pandas):
+merged_data['stock_discrepancy'] = merged_data['api_stock'] - merged_data['db_stock']
+
+               * Después (Polars): Aquí es donde polars brilla. Su API de expresiones es explícita, legible y optimizada para ejecutarse en paralelo.
+merged_data = merged_data.with_columns(
+   (pl.col('api_stock') - pl.col('db_stock')).alias('stock_discrepancy')
+)
+
+                  * Conversión a Diccionario (to_dict -> to_dicts):
+                  * Antes (Pandas):
+results = final_data.to_dict('records')
+
+                  * Después (Polars):
+results = final_data.to_dicts()
+
+Objetivo 3: tests/test_connectors.py
+Un código sin pruebas es un código sin valor. Tus pruebas deben validar el nuevo sistema.
+                     * Actualiza tus aserciones. Ya no comprobarás si el resultado es una instancia de pandas.DataFrame, sino de polars.DataFrame.
+                     * Asegúrate de que las pruebas que simulan los datos de entrada (mock data) creen objetos compatibles con polars si es necesario.
+Fase 3: Verificación y Despliegue
+                     1. Pruebas Locales: Ejecuta tu suite de pruebas y asegúrate de que todo pase en verde.
+python -m pytest
+
+                     2. Ejecución Local: Inicia la aplicación Flask y prueba la funcionalidad manualmente. Verifica que los datos se muestran correctamente.
+                     3. Merge y Despliegue: Una vez verificado, fusiona la rama feature/migrate-to-polars a main.
+git checkout main
+git merge feature/migrate-to-polars
+git push
+
+Vercel se encargará del despliegue automáticamente.
+Métricas de Éxito
+No celebramos el esfuerzo, celebramos los resultados. Mide tu victoria.
+                        1. Despliegue Exitoso: La aplicación se despliega en Vercel sin errores.
+                        2. Rendimiento Mejorado: Revisa los logs de Vercel. Deberías ver una reducción significativa en el uso de memoria y en la duración de la ejecución de las funciones serverless.
+                        3. Funcionalidad Intacta: La aplicación funciona exactamente como antes, pero más rápido.
+Has completado la misión. No solo has solucionado un problema técnico, has elevado el estándar de tu proyecto. Has actuado como un profesional. Ahora, a ejecutar.

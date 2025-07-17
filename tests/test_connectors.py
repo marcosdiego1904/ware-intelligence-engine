@@ -1,5 +1,5 @@
 import unittest
-import pandas as pd
+import polars as pl
 import sys
 import os
 
@@ -16,22 +16,24 @@ TEST_DB_CONFIG = {
     'user': 'test_user',
     'password': 'test_password',
     'database': 'test_ware_engine',
-    'port': 3307 
+    'port': 3307
 }
 
 # This simulates the mapping a user would provide.
 # Key: The standard column name our engine expects.
 # Value: The actual column name in the source database table.
 TEST_COLUMN_MAPPING = {
-    'ubicacion': 'location_code',
-    'id_palet': 'pallet_id',
-    'id_articulo': 'item_sku',
-    'descripcion_articulo': 'item_description',
-    'cantidad': 'quantity',
-    'fecha_caducidad': 'expiry_date'
+    'location': 'location',
+    'pallet_id': 'pallet_id',
+    'item_id': 'item_id',
+    'description': 'description',
+    'quantity': 'quantity',
+    'expiry_date': 'expiry_date',
+    'creation_date': 'creation_date',
+    'receipt_number': 'receipt_number'
 }
 
-TEST_TABLE_NAME = 'inventory_data'
+TEST_TABLE_NAME = 'inventory'
 
 
 class TestSQLConnector(unittest.TestCase):
@@ -57,20 +59,20 @@ class TestSQLConnector(unittest.TestCase):
 
             # 3. Get Data
             df = connector.get_data()
-            self.assertIsInstance(df, pd.DataFrame, "get_data() should return a pandas DataFrame")
-            self.assertFalse(df.empty, "DataFrame should not be empty")
+            self.assertIsInstance(df, pl.DataFrame, "get_data() should return a Polars DataFrame")
+            self.assertFalse(df.is_empty(), "DataFrame should not be empty")
             
             # 4. Verification
             print("Verifying DataFrame content...")
-            self.assertEqual(len(df), 3, "Should fetch 3 rows from the test database")
+            self.assertEqual(len(df), 4, "Should fetch 4 rows from the test database")
             
             expected_columns = list(TEST_COLUMN_MAPPING.keys())
             self.assertListEqual(sorted(list(df.columns)), sorted(expected_columns), "DataFrame columns should match the renamed keys from the mapping")
             
             # Check a sample value
             # Let's find the row for 'Canned Corn' and check its quantity
-            canned_corn_row = df[df['id_articulo'] == 'SKU12346']
-            self.assertEqual(canned_corn_row['cantidad'].iloc[0], 150, "Quantity for Canned Corn should be 150")
+            canned_corn_row = df.filter(pl.col('item_id') == 'SKU12346')
+            self.assertEqual(canned_corn_row['quantity'][0], 150, "Quantity for Canned Corn should be 150")
 
             print("DataFrame content verified successfully.")
 

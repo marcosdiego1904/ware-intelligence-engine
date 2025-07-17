@@ -1,28 +1,28 @@
 from abc import ABC, abstractmethod
-import pandas as pd
+import polars as pl
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 import requests
 
 class DataConnector(ABC):
-   @abstractmethod
-   def connect(self):
-       """Establishes the connection to the data source."""
-       pass
+    @abstractmethod
+    def connect(self):
+        """Establishes the connection to the data source."""
+        pass
 
-   @abstractmethod
-   def get_data(self) -> pd.DataFrame:
-       """
-       Fetches data from the source and returns it as a pandas DataFrame.
-       This method MUST always return a pandas DataFrame structured according
-       to the application's expected format.
-       """
-       pass
+    @abstractmethod
+    def get_data(self) -> pl.DataFrame:
+        """
+        Fetches data from the source and returns it as a Polars DataFrame.
+        This method MUST always return a Polars DataFrame structured according
+        to the application's expected format.
+        """
+        pass
 
-   @abstractmethod
-   def disconnect(self):
-       """Closes the connection to the data source."""
-       pass 
+    @abstractmethod
+    def disconnect(self):
+        """Closes the connection to the data source."""
+        pass
 
 class SQLConnector(DataConnector):
     def __init__(self, db_config, table_name, column_mapping):
@@ -50,10 +50,10 @@ class SQLConnector(DataConnector):
             print(f"Error connecting to the database: {e}")
             raise
 
-    def get_data(self) -> pd.DataFrame:
+    def get_data(self) -> pl.DataFrame:
         if not self.connection:
             print("Connection not established. Call connect() first.")
-            return pd.DataFrame()
+            return pl.DataFrame()
 
         try:
             # The mapping is {'engine_column': 'database_column'}.
@@ -71,17 +71,17 @@ class SQLConnector(DataConnector):
 
             query = f"SELECT {', '.join(query_columns)} FROM `{self.table_name}`"
             
-            df = pd.read_sql(text(query), self.connection)
+            df = pl.read_database(query=text(query), connection=self.connection)
 
             print(f"Successfully fetched {len(df)} rows from table '{self.table_name}'.")
             return df
             
         except SQLAlchemyError as e:
             print(f"Error executing query: {e}")
-            return pd.DataFrame() # Return empty DataFrame on error
+            return pl.DataFrame() # Return empty DataFrame on error
         except Exception as e:
             print(f"An unexpected error occurred during data fetching: {e}")
-            return pd.DataFrame()
+            return pl.DataFrame()
 
     def disconnect(self):
         if self.connection:
@@ -117,11 +117,11 @@ class APIConnector(DataConnector):
             print(f"Error initializing requests session: {e}")
             raise
 
-    def get_data(self) -> pd.DataFrame:
+    def get_data(self) -> pl.DataFrame:
         """Fetches data from the API endpoint and normalizes it into a DataFrame."""
         if not self.session:
             print("Session not established. Call connect() first.")
-            return pd.DataFrame()
+            return pl.DataFrame()
 
         try:
             response = self.session.get(self.base_url)
@@ -129,15 +129,12 @@ class APIConnector(DataConnector):
             
             data = response.json()
             
-            # json_normalize is a powerful tool to flatten nested JSON.
-            # We might need to specify 'record_path' or 'meta' for complex JSON structures.
-            # For now, we assume a simple list of records.
-            df = pd.json_normalize(data)
+            df = pl.from_dicts(data)
             
             # Rename columns based on the user's mapping.
             # The mapping is {'engine_column': 'api_column'}. We need to reverse it for renaming.
             rename_map = {api_col: engine_col for engine_col, api_col in self.column_mapping.items()}
-            df = df.rename(columns=rename_map)
+            df = df.rename(rename_map)
 
             # --- Type Conversion ---
             # Ensure date columns are converted to datetime objects, crucial for calculations.
@@ -145,18 +142,18 @@ class APIConnector(DataConnector):
             for col in date_columns:
                 if col in df.columns:
                     # 'errors="coerce"' will turn any unparseable date into NaT (Not a Time)
-                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                    df = df.with_columns(pl.col(col).str.to_datetime(strict=False))
 
             print(f"Successfully fetched and normalized {len(df)} records from the API.")
             return df
 
         except requests.exceptions.RequestException as e:
             print(f"Error fetching data from API: {e}")
-            return pd.DataFrame()
+            return pl.DataFrame()
         except (ValueError, TypeError) as e:
             # Handles JSON decoding errors or issues with json_normalize
             print(f"Error processing JSON response: {e}")
-            return pd.DataFrame()
+            return pl.DataFrame()
 
     def disconnect(self):
         """Closes the requests.Session."""

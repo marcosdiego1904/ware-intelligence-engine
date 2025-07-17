@@ -1,5 +1,6 @@
-Flask
-pandas
+Flask==2.2.2
+polars==0.19.12
+connectorx==0.4.3
 openpyxl
 Flask-SQLAlchemy
 SQLAlchemy
@@ -7,4 +8,7 @@ mysql-connector-python
 Flask-Login
 Werkzeug
 cryptography
-requests 
+requests
+psycopg2-binary
+python-dotenv==0.21.0
+pytest 
