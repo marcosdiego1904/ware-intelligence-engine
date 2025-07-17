@@ -40,8 +40,8 @@ class SQLConnector(DataConnector):
             host_str = f"{host}:{port}" if port else host
 
             connection_string = (
-                f"mysql+mysqlconnector://{self.db_config['user']}:{self.db_config['password']}"
-                f"@{host_str}/{self.db_config['database']}"
+            f"mysql+pymysql://{self.db_config['user']}:{self.db_config['password']}"
+            f"@{host_str}/{self.db_config['database']}"
             )
             self.engine = create_engine(connection_string)
             self.connection = self.engine.connect()

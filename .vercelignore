@@ -1,26 +1,27 @@
-# Vercel deployment ignore file
-
-# Environment
-venv/
+# Entornos virtuales y dependencias locales
 .venv/
-__pycache__/
-*.pyc
-
-# Git
-.git/
-.gitignore
-
-# Documentation & Local Files
-*.md
+venv/
+ENV/
+env/
 instance/
-data/
+
+# Archivos de configuración y documentación local
+.gitignore
+README.md
 mock_api_server.py
 init.sql
 
-# Tests
-tests/
-.pytest_cache/
+# Directorio de pruebas (no es necesario en producción)
+/tests
 
-# IDE/Editor specific
+# Cachés y archivos compilados de Python
+__pycache__/
+*.pyc
+
+# Archivos de configuración de editores
 .vscode/
-.idea/ 
+.idea/
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
