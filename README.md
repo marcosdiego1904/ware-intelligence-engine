@@ -52,6 +52,6 @@ The engine is designed to detect several classes of common warehouse problems:
 ## Technology Stack
 
 -   **Backend**: Python, Flask
--   **Data Processing**: Pandas
+-   **Data Processing**: Polars
 -   **Frontend**: HTML, CSS (standard templates)
 -   **Deployment**: Vercel

@@ -8,4 +8,3 @@ Werkzeug
 cryptography
 requests
 python-dotenv==0.21.0
-connectorx==0.4.3
