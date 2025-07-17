@@ -1,7 +1,5 @@
 Flask==2.2.2
 polars-lts-cpu==0.20.31
-connectorx==0.4.3
-openpyxl
 Flask-SQLAlchemy
 SQLAlchemy
 PyMySQL
@@ -10,3 +8,4 @@ Werkzeug
 cryptography
 requests
 python-dotenv==0.21.0
+connectorx==0.4.3

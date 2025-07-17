@@ -5,7 +5,7 @@ import tempfile
 import json
 from datetime import datetime
 from flask import Flask, render_template, request, session, redirect, url_for, send_from_directory, flash, jsonify 
-import pandas as pd
+import polars as pl
 from argparse import Namespace
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -336,19 +336,19 @@ def process_connection(source_id):
         inventory_df = connector.get_data()
         connector.disconnect()
 
-        if inventory_df.empty:
+        if inventory_df.is_empty():
             flash("No data could be fetched from the data source.", "warning")
             return redirect(url_for('connections'))
-        
+
         # --- Run Engine ---
         rules_path = os.path.join(_data_folder, 'warehouse_rules.xlsx')
-        rules_df = pd.read_excel(rules_path)
+        rules_df = pl.read_excel(rules_path)
         
         args = Namespace(debug=False, floating_time=8, straggler_ratio=0.85, stuck_ratio=0.80, stuck_time=6)
         results = run_engine(inventory_df, rules_df, args)
         
         # --- Store Results ---
-        report_name = f"Analysis from {source.name}"
+        report_name = f"Analysis from {source.name} on {datetime.now().strftime('%Y-%m-%d')}"
         new_report = AnalysisReport(report_name=report_name, user_id=current_user.id)
         db.session.add(new_report)
         db.session.flush()
@@ -453,7 +453,7 @@ def index():
             session['inventory_filepath'] = inventory_filepath
             session['rules_filepath'] = rules_filepath
 
-            df_headers = pd.read_excel(inventory_filepath, nrows=0)
+            df_headers = pl.read_excel(inventory_filepath, n_rows=0)
             session['user_columns'] = df_headers.columns.tolist()
 
             return redirect(url_for('mapping'))
@@ -491,11 +491,11 @@ def mapping():
 
 def default_json_serializer(obj):
     """JSON serializer for objects not serializable by default json code"""
-    if isinstance(obj, (datetime, pd.Timestamp)):
+    if isinstance(obj, (datetime, datetime)):
         return obj.isoformat()
     if isinstance(obj, set):
         return list(obj)
-    if pd.isna(obj):
+    if obj is None:
         return None
     try:
         return str(obj)
@@ -517,8 +517,8 @@ def process_mapping():
         return redirect(url_for('index'))
 
     try:
-        inventory_df = pd.read_excel(inventory_filepath)
-        rules_df = pd.read_excel(rules_filepath)
+        inventory_df = pl.read_excel(inventory_filepath)
+        rules_df = pl.read_excel(rules_filepath)
 
         # Apply user's mapping from the form
         mapping = {
@@ -534,7 +534,7 @@ def process_mapping():
         
         # Filter out empty values and rename columns
         column_rename_map = {v: k for k, v in mapping.items() if v}
-        inventory_df.rename(columns=column_rename_map, inplace=True)
+        inventory_df = inventory_df.rename(column_rename_map)
         
         # --- Run Engine ---
         args = Namespace(debug=False, floating_time=8, straggler_ratio=0.85, stuck_ratio=0.80, stuck_time=6)
@@ -566,7 +566,8 @@ def process_mapping():
         flash("Analysis complete!", "success")
         # Clean up session and temporary files
         os.remove(inventory_filepath)
-        os.remove(rules_filepath)
+        if os.path.exists(rules_filepath) and rules_filepath != DEFAULT_RULES_PATH:
+            os.remove(rules_filepath)
         session.pop('inventory_filepath', None)
         session.pop('rules_filepath', None)
         session.pop('original_filename', None)
