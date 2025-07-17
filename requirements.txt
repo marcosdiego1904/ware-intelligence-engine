@@ -10,5 +10,4 @@ Werkzeug
 cryptography
 requests
 psycopg2-binary
-python-dotenv==0.21.0
-pytest 
+python-dotenv==0.21.0 

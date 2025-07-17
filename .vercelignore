@@ -1,0 +1,27 @@
+# Vercel deployment ignore file
+
+# Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Git
+.git/
+.gitignore
+
+# Documentation & Local Files
+*.md
+*.txt
+instance/
+data/
+mock_api_server.py
+init.sql
+
+# Tests
+tests/
+.pytest_cache/
+
+# IDE/Editor specific
+.vscode/
+.idea/ 
