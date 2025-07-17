@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Connections - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; margin: 2rem auto;" x-data="{ showForm: false }">
+    <div class="header">
+        <h1>Manage Data Connections</h1>
+        <p class="subtitle">Set up and manage your direct database connections.</p>
+    </div>
+
+    <!-- Main Card: List of connections -->
+    <div class="card" x-show="!showForm" x-transition>
+        <h2>Your Connections</h2>
+        
+        {% if connections %}
+        <ul class="connections-list">
+            {% for conn in connections %}
+            <li class="connection-item">
+                <div class="connection-info">
+                    <span class="connection-name">{{ conn.name }}</span>
+                    <span class="connection-type">{{ conn.type }}</span>
+                </div>
+                <div class="connection-actions">
+                    <form action="{{ url_for('process_connection', source_id=conn.id) }}" method="POST" style="margin-bottom: 0;">
+                        <button type="submit" class="btn-icon btn-process" title="Run Analysis">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                        </button>
+                    </form>
+                    <form action="{{ url_for('delete_connection', source_id=conn.id) }}" method="POST" style="margin-bottom: 0;">
+                        <button type="submit" class="btn-icon btn-delete" title="Delete Connection" onclick="return confirm('Are you sure you want to delete this connection?');">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                        </button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v8A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1h-3zM11 4h3.5a.5.5 0 0 1 .5.5v8a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-8a.5.5 0 0 1 .5-.5H5v1.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5V4z"/>
+                </svg>
+            </div>
+            <h3>No connections yet</h3>
+            <p>You haven't set up any database connections. Create your first one to get started.</p>
+        </div>
+        {% endif %}
+
+        <div class="actions">
+            <button class="btn-primary" @click="showForm = true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+                </svg>
+                Create New Connection
+            </button>
+        </div>
+    </div>
+
+    <!-- Form Card: Create new connection -->
+    <div class="card" x-show="showForm" x-cloak x-transition
+         x-data="{ connectionType: 'mysql' }">
+        <h2>Create New Connection</h2>
+        <form action="{{ url_for('create_connection') }}" method="POST">
+            
+            <fieldset>
+                <legend>Connection Details</legend>
+                <div class="form-group">
+                    <label for="name">Connection Name</label>
+                    <input type="text" id="name" name="name" required placeholder="e.g., WMS Bodega Principal">
+                </div>
+                <div class="form-group">
+                    <label for="type">Connector Type</label>
+                    <select id="type" name="type" required x-model="connectionType">
+                        <option value="mysql">MySQL</option>
+                        <option value="api">API REST</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <!-- Fields for MySQL -->
+            <fieldset x-show="connectionType === 'mysql'" x-transition>
+                <legend>Credentials</legend>
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="host">Host</label>
+                        <input type="text" id="host" name="host" :required="connectionType === 'mysql'" value="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="port">Port</label>
+                        <input type="number" id="port" name="port" :required="connectionType === 'mysql'" value="3307">
+                    </div>
+                    <div class="form-group">
+                        <label for="user">User</label>
+                        <input type="text" id="user" name="user" :required="connectionType === 'mysql'">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" :required="connectionType === 'mysql'">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="database">Database Name</label>
+                    <input type="text" id="database" name="database" :required="connectionType === 'mysql'">
+                </div>
+            </fieldset>
+
+            <!-- Fields for API REST -->
+            <fieldset x-show="connectionType === 'api'" x-transition>
+                <legend>API Details</legend>
+                <div class="form-group">
+                    <label for="api_url">API URL</label>
+                    <input type="url" id="api_url" name="api_url" placeholder="https://api.example.com/inventory" :required="connectionType === 'api'">
+                </div>
+                <div class="form-group">
+                    <label for="api_key">API Key (optional)</label>
+                    <input type="password" id="api_key" name="api_key" placeholder="Enter your API key if required">
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Data Mapping</legend>
+                <p class="form-legend-subtitle">Map the source fields (from your DB table or API response) to the engine's standard fields.</p>
+                
+                <!-- Table name only for MySQL -->
+                <div class="form-group" x-show="connectionType === 'mysql'" x-transition>
+                    <label for="table_name">Table Name</label>
+                    <input type="text" id="table_name" name="table_name" placeholder="e.g., inventory_data" :required="connectionType === 'mysql'">
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label for="map_ubicacion">Ubicación Column</label>
+                        <input type="text" id="map_ubicacion" name="map_ubicacion" required placeholder="Column name for location">
+                    </div>
+                    <div class="form-group">
+                        <label for="map_id_palet">Pallet ID Column</label>
+                        <input type="text" id="map_id_palet" name="map_id_palet" required placeholder="Column name for pallet ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="map_id_articulo">Article ID Column</label>
+                        <input type="text" id="map_id_articulo" name="map_id_articulo" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="map_descripcion_articulo">Description Column</label>
+                        <input type="text" id="map_descripcion_articulo" name="map_descripcion_articulo" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="map_cantidad">Quantity Column</label>
+                        <input type="text" id="map_cantidad" name="map_cantidad" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="map_fecha_caducidad">Expiry Date Column</label>
+                        <input type="text" id="map_fecha_caducidad" name="map_fecha_caducidad" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="map_creation_date">Creation Date Column</label>
+                        <input type="text" id="map_creation_date" name="map_creation_date" required placeholder="Column for creation date">
+                    </div>
+                     <div class="form-group">
+                        <label for="map_receipt_number">Receipt Number Column</label>
+                        <input type="text" id="map_receipt_number" name="map_receipt_number" required placeholder="Column for lot/receipt number">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" @click="showForm = false">Cancel</button>
+                <button type="submit" class="btn-primary">Save Connection</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+    .header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .card {
+        background-color: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: var(--card-shadow);
+        padding: 2.5rem;
+    }
+    .card h2 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        border: 2px dashed var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: 2rem;
+    }
+    .empty-icon {
+        background-color: #f2f3f4;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem auto;
+        color: var(--secondary-text);
+    }
+    .empty-state h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+    }
+    .empty-state p {
+        color: var(--secondary-text);
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    .connections-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .connection-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .connection-item:last-child {
+        border-bottom: none;
+    }
+    .connection-name {
+        font-weight: 600;
+    }
+    .connection-type {
+        background-color: #e9ecef;
+        color: var(--secondary-text);
+        padding: 0.2rem 0.6rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 1rem;
+    }
+    .connection-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .btn-icon {
+        background: none;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .btn-icon.btn-process {
+        color: var(--success-color);
+    }
+    .btn-icon.btn-process:hover {
+        background-color: var(--success-bg);
+    }
+     .btn-icon.btn-delete {
+        color: var(--danger-color);
+    }
+    .btn-icon.btn-delete:hover {
+        background-color: var(--danger-bg);
+    }
+    .actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    .btn-primary {
+        /* Assuming you have a primary button style, if not, this is a placeholder */
+        background: linear-gradient(45deg, var(--accent-color), var(--accent-color-dark));
+        color: var(--white);
+        border: none;
+        border-radius: var(--border-radius);
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.4);
+    }
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .btn-secondary {
+        background-color: #f2f3f4;
+        color: var(--primary-text);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    fieldset {
+        border: none;
+        padding: 0;
+        margin: 0;
+        margin-top: 2rem;
+    }
+    legend {
+        font-size: 1.1rem;
+        font-weight: 600;
+        padding: 0;
+        margin-bottom: 1rem;
+    }
+    .form-grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        font-size: 1rem;
+    }
+</style>
+{% endblock %} 

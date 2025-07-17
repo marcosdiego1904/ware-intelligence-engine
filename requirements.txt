@@ -1,6 +1,10 @@
 Flask
 pandas
-openpyxl 
+openpyxl
 Flask-SQLAlchemy
+SQLAlchemy
+mysql-connector-python
 Flask-Login
-Werkzeug 
+Werkzeug
+cryptography
+requests 

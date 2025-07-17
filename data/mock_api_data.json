@@ -1,0 +1,42 @@
+[
+  {
+    "stock_location": "A-01-01",
+    "pallet_tag": "PALLET-API-101",
+    "product_code": "SKU-APPLE-01",
+    "product_name": "Red Apples",
+    "item_count": 150,
+    "expiration": "2025-12-31T00:00:00",
+    "received_on": "2024-07-18T10:00:00",
+    "batch_id": "LOT-API-A"
+  },
+  {
+    "stock_location": "A-01-01",
+    "pallet_tag": "PALLET-API-102",
+    "product_code": "SKU-APPLE-01",
+    "product_name": "Red Apples",
+    "item_count": 200,
+    "expiration": "2025-12-31T00:00:00",
+    "received_on": "2024-07-18T10:00:00",
+    "batch_id": "LOT-API-A"
+  },
+  {
+    "stock_location": "RECEIVING",
+    "pallet_tag": "PALLET-API-103",
+    "product_code": "SKU-BANANA-02",
+    "product_name": "Bananas",
+    "item_count": 500,
+    "expiration": "2024-08-10T00:00:00",
+    "received_on": "2024-01-01T11:00:00",
+    "batch_id": "LOT-API-B"
+  },
+  {
+      "stock_location": "X-99-99",
+      "pallet_tag": "PALLET-API-X99",
+      "product_code": "SKU-SPECIAL-X",
+      "product_name": "Mystery Box",
+      "item_count": 1,
+      "expiration": "2025-01-01T00:00:00",
+      "received_on": "2024-07-18T12:00:00",
+      "batch_id": "LOT-API-X"
+  }
+] 
