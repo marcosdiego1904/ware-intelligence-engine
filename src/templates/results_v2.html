@@ -57,9 +57,24 @@
         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-slate-900 dark:text-white">Pallet History: <span id="modal-pallet-id"></span></h3>
-                <button onclick="closeModal()" class="text-slate-500 hover:text-slate-800 dark:hover:text-white">&times;</button>
+                <button onclick="closeModal('history-modal')" class="text-slate-500 hover:text-slate-800 dark:hover:text-white">&times;</button>
             </div>
-            <div id="modal-content" class="text-sm text-slate-600 dark:text-slate-400">
+            <div id="modal-content" class="text-sm text-slate-600 dark:text-slate-400 max-h-[60vh] overflow-y-auto">
+            </div>
+        </div>
+    </div>
+    
+    <div id="status-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Update Status</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Updating status for anomaly #<span id="status-modal-anomaly-id"></span></p>
+            <div class="mb-4">
+                <label for="status-comment" class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Comment (Optional)</label>
+                <textarea id="status-comment" rows="3" class="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal('status-modal')" class="text-sm font-semibold px-4 py-2 rounded-lg bg-slate-100 text-slate-800 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Cancel</button>
+                <button id="status-modal-save" class="text-sm font-semibold px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save Update</button>
             </div>
         </div>
     </div>
@@ -87,6 +102,15 @@
                 <h2 class="text-xl font-bold mb-1 text-slate-900 dark:text-white">Critical Locations</h2>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Select an area to view its details.</p>
                 <ul id="hotspots-list" class="space-y-2"></ul>
+
+                <!-- Inventory Health -->
+                <div id="health-bar-container" class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700" style="display: none;">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2">Inventory Health</h3>
+                    <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-5 relative">
+                        <div id="health-bar" class="h-5 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                        <span id="health-bar-text" class="absolute inset-0 text-center text-sm font-bold text-white leading-5"></span>
+                    </div>
+                </div>
             </aside>
 
             <section id="details-panel" class="lg:col-span-2 space-y-4">
@@ -125,6 +149,13 @@
                 'LOW': { text: 'LOW', bg: 'bg-slate-200 dark:bg-slate-700', textColor: 'text-slate-800 dark:text-slate-300', border: 'border-slate-400' }
             };
 
+            const statusStyles = {
+                'New': { text: 'New', color: 'text-slate-500', bg: 'bg-slate-200 dark:bg-slate-700' },
+                'Acknowledged': { text: 'Acknowledged', color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/50' },
+                'In Progress': { text: 'In Progress', color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/50' },
+                'Resolved': { text: 'Resolved', color: 'text-green-500', bg: 'bg-green-100 dark:bg-green-900/50' }
+            };
+
             const chartColors = {
                 'Floating Pallet': 'rgba(253, 186, 116, 0.8)', 'Lot Straggler': 'rgba(252, 165, 165, 0.8)', 'Product-Location Incompatibility': 'rgba(191, 219, 254, 0.8)', 'Over-capacity Location': 'rgba(148, 163, 184, 0.8)', 'Stuck in Transit': 'rgba(249, 115, 22, 0.8)', 'Unknown Location': 'rgba(239, 68, 68, 0.8)', 'Missing Location': 'rgba(185, 28, 28, 0.8)'
             };
@@ -133,28 +164,98 @@
             function renderAll() {
                 renderKPIs();
                 renderHotspotsList();
+                updateHealthBar(); // Set initial health bar state
+
                 if (reportData.locations && reportData.locations.length > 0) {
-                    const firstLocationName = reportData.locations[0].name;
-                    selectLocation(firstLocationName);
+                    selectAllLocations(); // Default to showing all locations.
                 } else {
                     // Handle case with no locations
                     document.getElementById('details-panel').innerHTML = '<p class="text-center text-slate-500">No anomalies found in this report.</p>';
+                    document.getElementById('hotspots-list').innerHTML = '';
                 }
             }
 
             function renderKPIs() {
                 const kpiContainer = document.getElementById('kpi-section');
                 kpiContainer.innerHTML = reportData.kpis.map(kpi => `
-                    <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 fade-in">
+                    <div id="kpi-${kpi.label.replace(/\s+/g, '-')}" class="bg-white dark:bg-slate-800 p-3 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 fade-in">
                         <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">${kpi.label}</p>
                         <p class="text-xl md:text-2xl font-bold text-slate-900 dark:text-white mt-1">${kpi.value}</p>
                     </div>
                 `).join('');
             }
 
+            function updateResolutionRate() {
+                const allAnomalies = reportData.locations.flatMap(l => l.anomalies);
+                const total = allAnomalies.length;
+                const resolved = allAnomalies.filter(a => a.status === 'Resolved').length;
+                
+                let rateText = 'N/A';
+                if (total > 0) {
+                    const percentage = (resolved / total) * 100;
+                    rateText = `${resolved} of ${total} (${percentage.toFixed(0)}%)`;
+                }
+
+                // Update data object
+                const kpi = reportData.kpis.find(k => k.label === 'Resolution Rate');
+                if (kpi) {
+                    kpi.value = rateText;
+                }
+
+                // Update DOM directly
+                const kpiElement = document.getElementById('kpi-Resolution-Rate');
+                if (kpiElement) {
+                    kpiElement.querySelector('.font-bold').textContent = rateText;
+                }
+                
+                updateHealthBar(); // Also update health bar when rate changes
+            }
+
+            function updateHealthBar() {
+                const allAnomalies = reportData.locations.flatMap(l => l.anomalies);
+                const total = allAnomalies.length;
+                const container = document.getElementById('health-bar-container');
+
+                if (total === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+                container.style.display = 'block';
+
+                const resolvedCount = allAnomalies.filter(a => a.status === 'Resolved').length;
+                const percentage = (resolvedCount / total) * 100;
+
+                const healthBar = document.getElementById('health-bar');
+                const healthBarText = document.getElementById('health-bar-text');
+
+                healthBar.style.width = `${percentage}%`;
+                healthBarText.textContent = `${percentage.toFixed(0)}%`;
+
+                healthBar.classList.remove('bg-red-500', 'bg-yellow-500', 'bg-green-500');
+
+                if (percentage >= 80) {
+                    healthBar.classList.add('bg-green-500');
+                } else if (percentage >= 40) {
+                    healthBar.classList.add('bg-yellow-500');
+                } else {
+                    healthBar.classList.add('bg-red-500');
+                }
+            }
+
             function renderHotspotsList() {
                 const hotspotsList = document.getElementById('hotspots-list');
-                hotspotsList.innerHTML = reportData.locations.map((location, index) => `
+                const allAnomaliesCount = reportData.locations.reduce((acc, loc) => acc + loc.anomaly_count, 0);
+                
+                const viewAllHTML = `
+                    <li id="hotspot-all"
+                        class="hotspot-item flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-700 fade-in"
+                        onclick="selectAllLocations()">
+                        <span class="font-semibold text-blue-600 dark:text-blue-400">View All Locations</span>
+                        <span class="text-sm font-bold bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 px-2.5 py-1 rounded-full">${allAnomaliesCount}</span>
+                    </li>
+                `;
+
+                const locationsHTML = reportData.locations.map((location, index) => `
                     <li id="hotspot-${location.name.replace(/[^a-zA-Z0-9]/g, '')}"
                         class="hotspot-item flex justify-between items-center p-3 rounded-lg cursor-pointer transition-all hover:bg-slate-100 dark:hover:bg-slate-700 fade-in"
                         style="animation-delay: ${index * 50}ms"
@@ -163,14 +264,20 @@
                         <span class="text-sm font-bold bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 px-2.5 py-1 rounded-full">${location.anomaly_count}</span>
                     </li>
                 `).join('');
+
+                hotspotsList.innerHTML = viewAllHTML + locationsHTML;
             }
 
             function renderLocationDetails(locationName) {
-                document.getElementById('selected-location-name').textContent = locationName;
-                const locationData = reportData.locations.find(l => l.name === locationName);
-                if (!locationData) return;
+                const title = locationName ? locationName : "All Locations";
+                document.getElementById('selected-location-name').textContent = title;
 
-                const anomalies = locationData.anomalies || [];
+                const anomalies = locationName
+                    ? (reportData.locations.find(l => l.name === locationName)?.anomalies || [])
+                    : reportData.locations.flatMap(l => l.anomalies);
+
+                if (!anomalies) return;
+
                 renderAnomaliesChart(anomalies);
                 renderFilterButtons();
                 let anomaliesToRender = anomalies;
@@ -187,19 +294,27 @@
                     return;
                 }
                 container.innerHTML = anomalies.map((anomaly, index) => {
-                    const style = priorityStyles[anomaly.priority] || priorityStyles.LOW;
-                    const isResolved = anomaly.resolved;
+                    const priorityStyle = priorityStyles[anomaly.priority] || priorityStyles.LOW;
+                    const statusStyle = statusStyles[anomaly.status] || statusStyles.New;
+                    const isResolved = anomaly.status === 'Resolved';
                     const resolvedClass = isResolved ? 'anomaly-resolved' : '';
-                    const buttonText = isResolved ? 'Resolved' : 'Resolve';
-                    const buttonStyle = isResolved 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' 
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80';
+                    
+                    const nextActions = {
+                        'New': ['Acknowledged', 'Resolved'],
+                        'Acknowledged': ['In Progress', 'Resolved'],
+                        'In Progress': ['Resolved', 'Acknowledged'],
+                        'Resolved': []
+                    };
+                    const availableActions = nextActions[anomaly.status] || [];
 
                     return `
-                        <div id="anomaly-card-${anomaly.id}" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${style.border} border-l-4 p-4 transition-all hover:shadow-md dark:border-slate-700 ${resolvedClass} fade-in" style="animation-delay: ${index * 50}ms">
-                            <div class="flex justify-between items-start">
+                        <div id="anomaly-card-${anomaly.id}" class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border ${priorityStyle.border} border-l-4 p-4 transition-all hover:shadow-md dark:border-slate-700 ${resolvedClass} fade-in" style="animation-delay: ${index * 50}ms">
+                            <div class="flex justify-between items-start gap-2">
                                 <h4 class="font-bold text-lg text-slate-900 dark:text-white">${anomaly.anomaly_type}</h4>
-                                <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${style.bg} ${style.textColor}">${style.text}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${statusStyle.bg} ${statusStyle.color}">${statusStyle.text}</span>
+                                    <span class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full ${priorityStyle.bg} ${priorityStyle.textColor}">${priorityStyle.text}</span>
+                                </div>
                             </div>
                             <p class="text-slate-600 dark:text-slate-400 mt-1 mb-3">${anomaly.details}</p>
                             <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
@@ -207,8 +322,12 @@
                                     Pallet ID: <span class="font-bold text-slate-800 dark:text-slate-200">${anomaly.pallet_id}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button id="resolve-btn-${anomaly.id}" onclick="toggleResolveAnomaly('${anomaly.id}')" class="text-xs font-semibold px-3 py-1.5 rounded-md ${buttonStyle} transition-opacity" ${isResolved ? 'disabled' : ''}>${buttonText}</button>
-                                    <button onclick="showHistoryModal('${anomaly.pallet_id}')" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80 transition-opacity">History</button>
+                                    ${!isResolved ? `
+                                        <div class="flex items-center gap-1">
+                                            ${availableActions.map(action => `<button onclick="openStatusModal('${anomaly.id}', '${action}')" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80 transition-opacity">${action}</button>`).join('')}
+                                        </div>
+                                    ` : `<span class="text-xs font-semibold text-green-600">Completed</span>`}
+                                    <button onclick="showHistoryModal('${anomaly.id}')" class="text-xs font-semibold px-3 py-1.5 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 hover:opacity-80 transition-opacity">History</button>
                                 </div>
                             </div>
                         </div>`;
@@ -245,6 +364,13 @@
             }
 
             // --- INTERACTION LOGIC ---
+            window.selectAllLocations = () => {
+                currentLocation = null;
+                document.querySelectorAll('.hotspot-item').forEach(item => item.classList.remove('bg-blue-100', 'dark:bg-blue-900/50'));
+                document.getElementById('hotspot-all').classList.add('bg-blue-100', 'dark:bg-blue-900/50');
+                renderLocationDetails(null);
+            };
+
             window.selectLocation = (locationName) => {
                 currentLocation = locationName;
                 document.querySelectorAll('.hotspot-item').forEach(item => item.classList.remove('bg-blue-100', 'dark:bg-blue-900/50'));
@@ -259,51 +385,115 @@
             };
 
             window.toggleResolveAnomaly = async (anomalyId) => {
-                const card = document.getElementById(`anomaly-card-${anomalyId}`);
-                const button = document.getElementById(`resolve-btn-${anomalyId}`);
-                if (!card || !button || button.disabled) return;
+                // This function is now DEPRECATED.
+                // It will be replaced by the status change logic.
+                // We keep it for now to avoid breaking anything, but it shouldn't be called from new code.
+                console.warn("toggleResolveAnomaly is deprecated.");
+            };
 
-                // Optimistic UI update
-                card.classList.add('anomaly-resolved');
-                button.textContent = 'Resolved';
-                button.disabled = true;
-                button.classList.remove('bg-slate-100', 'text-slate-700', 'dark:bg-slate-700', 'dark:text-slate-200', 'hover:opacity-80');
-                button.classList.add('bg-green-100', 'text-green-800', 'dark:bg-green-900/50', 'dark:text-green-300');
+            window.openStatusModal = (anomalyId, newStatus) => {
+                const modal = document.getElementById('status-modal');
+                document.getElementById('status-modal-anomaly-id').textContent = anomalyId;
+                document.getElementById('status-comment').value = '';
+                
+                const saveButton = document.getElementById('status-modal-save');
+                saveButton.onclick = () => updateAnomalyStatus(anomalyId, newStatus); // Re-assign onclick
+                
+                modal.classList.remove('hidden');
+            };
 
+            async function updateAnomalyStatus(anomalyId, newStatus) {
+                const comment = document.getElementById('status-comment').value;
+                const modal = document.getElementById('status-modal');
+                const saveButton = document.getElementById('status-modal-save');
+                saveButton.disabled = true;
+                saveButton.textContent = 'Saving...';
+                
                 try {
-                    const response = await fetch(`/api/anomaly/${anomalyId}/resolve`, {
+                    const response = await fetch(`/api/anomaly/${anomalyId}/status`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus, comment: comment })
                     });
 
                     if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(errorData.message || 'Failed to resolve anomaly.');
+                        throw new Error(errorData.message || `Failed to update status.`);
                     }
-                    // On success, the UI is already updated optimistically.
-                } catch (error) {
-                    console.error("Error resolving anomaly:", error);
                     
-                    // Revert UI changes on failure
-                    card.classList.remove('anomaly-resolved');
-                    button.textContent = 'Resolve';
-                    button.disabled = false;
-                    button.classList.add('bg-slate-100', 'text-slate-700', 'dark:bg-slate-700', 'dark:text-slate-200', 'hover:opacity-80');
-                    button.classList.remove('bg-green-100', 'text-green-800', 'dark:bg-green-900/50', 'dark:text-green-300');
-                    // Consider showing a user-facing error message here.
-                }
-            };
+                    const result = await response.json();
+                    
+                    // --- Update local data store ---
+                    const anomaly = reportData.locations
+                        .flatMap(l => l.anomalies)
+                        .find(a => a.id == anomalyId);
+                    
+                    if (anomaly) {
+                        anomaly.status = result.new_status;
+                        if (!anomaly.history) anomaly.history = [];
+                        anomaly.history.push(result.history_item);
+                    }
+                    
+                    // --- Re-render the affected parts ---
+                    if (currentLocation) {
+                        renderLocationDetails(currentLocation);
+                    } else {
+                        // If we are in "View All", we need to redraw everything
+                        // This is a simplification; a more advanced version could just update one card
+                        renderLocationDetails(null); 
+                    }
+                    updateResolutionRate();
+                    
+                    closeModal('status-modal');
 
-            window.showHistoryModal = (palletId) => {
-                document.getElementById('modal-pallet-id').textContent = palletId;
-                document.getElementById('modal-content').innerHTML = `<p>History for ${palletId} will be displayed here. This functionality requires a backend adaptation.</p>`;
+                } catch(error) {
+                    console.error("Error updating status:", error);
+                    alert("Error: " + error.message); // Simple error feedback
+                } finally {
+                    saveButton.disabled = false;
+                    saveButton.textContent = 'Save Update';
+                }
+            }
+
+            window.showHistoryModal = (anomalyId) => {
+                const anomaly = reportData.locations.flatMap(l => l.anomalies).find(a => a.id == anomalyId);
+                if (!anomaly) return;
+
+                document.getElementById('modal-pallet-id').textContent = `${anomaly.pallet_id} (#${anomaly.id})`;
+                const contentEl = document.getElementById('modal-content');
+                
+                if (!anomaly.history || anomaly.history.length === 0) {
+                    contentEl.innerHTML = '<p>No history recorded for this anomaly yet.</p>';
+                } else {
+                    contentEl.innerHTML = `
+                        <ol class="relative border-l border-gray-200 dark:border-gray-700">                  
+                            ${anomaly.history.map(entry => `
+                                <li class="mb-6 ml-6">            
+                                    <span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full -left-3 ring-8 ring-white dark:ring-gray-900 dark:bg-blue-900">
+                                        <svg class="w-2.5 h-2.5 text-blue-800 dark:text-blue-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4Z"/>
+                                            <path d="M0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
+                                        </svg>
+                                    </span>
+                                    <h3 class="flex items-center mb-1 text-md font-semibold text-gray-900 dark:text-white">
+                                        ${entry.new_status} 
+                                        ${entry.old_status ? `<span class="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded dark:bg-blue-900 dark:text-blue-300 ml-3">From ${entry.old_status}</span>` : ''}
+                                    </h3>
+                                    <time class="block mb-2 text-sm font-normal leading-none text-gray-400 dark:text-gray-500">
+                                        On ${new Date(entry.timestamp).toLocaleString()} by ${entry.user}
+                                    </time>
+                                    ${entry.comment ? `<p class="p-3 text-sm italic border border-gray-200 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">${entry.comment}</p>` : ''}
+                                </li>
+                            `).join('')}
+                        </ol>
+                    `;
+                }
+                
                 document.getElementById('history-modal').classList.remove('hidden');
             };
 
-            window.closeModal = () => {
-                document.getElementById('history-modal').classList.add('hidden');
+            window.closeModal = (modalId) => {
+                document.getElementById(modalId).classList.add('hidden');
             };
 
             // --- DARK MODE ---

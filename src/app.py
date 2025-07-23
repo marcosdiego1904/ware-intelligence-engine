@@ -62,6 +62,16 @@ class User(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+class AnomalyHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    anomaly_id = db.Column(db.Integer, db.ForeignKey('anomaly.id'), nullable=False)
+    old_status = db.Column(db.String(20), nullable=True)
+    new_status = db.Column(db.String(20), nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User')
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
 class AnalysisReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     report_name = db.Column(db.String(120), nullable=False, default=f"Analysis Report")
@@ -75,8 +85,8 @@ class Anomaly(db.Model):
     description = db.Column(db.String(255), nullable=False)
     details = db.Column(db.Text, nullable=True) # Could store JSON or other details
     report_id = db.Column(db.Integer, db.ForeignKey('analysis_report.id'), nullable=False)
-    resolved = db.Column(db.Boolean, default=False, nullable=False)
-    resolved_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), default='New', nullable=False)
+    history = db.relationship('AnomalyHistory', backref='anomaly', lazy='dynamic', cascade="all, delete-orphan")
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -364,17 +374,76 @@ def delete_report(report_id):
     return redirect(url_for('dashboard'))
 
 
+@app.route('/api/anomaly/<int:anomaly_id>/status', methods=['POST'])
+@login_required
+def change_anomaly_status(anomaly_id):
+    """
+    Updates the status of an anomaly and records the change in its history.
+    """
+    anomaly = Anomaly.query.get_or_404(anomaly_id)
+    
+    if anomaly.report.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    new_status = data.get('status')
+    comment = data.get('comment')
+    
+    if not new_status:
+        return jsonify({'success': False, 'message': 'New status is required.'}), 400
+
+    VALID_STATUSES = ['New', 'Acknowledged', 'In Progress', 'Resolved']
+    if new_status not in VALID_STATUSES:
+        return jsonify({'success': False, 'message': f'Invalid status: {new_status}'}), 400
+
+    old_status = anomaly.status
+    anomaly.status = new_status
+    
+    history_entry = AnomalyHistory(
+        anomaly_id=anomaly.id,
+        old_status=old_status,
+        new_status=new_status,
+        comment=comment,
+        user_id=current_user.id
+    )
+    
+    db.session.add(history_entry)
+    db.session.commit()
+    
+    new_history_item = {
+        "old_status": old_status,
+        "new_status": new_status,
+        "comment": comment,
+        "user": current_user.username,
+        "timestamp": history_entry.timestamp.isoformat()
+    }
+
+    return jsonify({
+        'success': True, 
+        'message': 'Status updated successfully.',
+        'new_status': new_status,
+        'history_item': new_history_item
+    })
+
+
 @app.route('/api/anomaly/<int:anomaly_id>/resolve', methods=['POST'])
 @login_required
 def resolve_anomaly(anomaly_id):
+    # This route is deprecated and will be removed.
+    # For now, it can forward to the new status change endpoint for compatibility.
     anomaly = Anomaly.query.get_or_404(anomaly_id)
-    
-    # Verify that the anomaly belongs to a report owned by the current user
     if anomaly.report.user_id != current_user.id:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
         
-    anomaly.resolved = True
-    anomaly.resolved_at = datetime.utcnow()
+    anomaly.status = 'Resolved'
+    history_entry = AnomalyHistory(
+        anomaly_id=anomaly.id,
+        old_status="Unknown", # Or the previous status if you can retrieve it
+        new_status="Resolved",
+        comment="Resolved via legacy endpoint.",
+        user_id=current_user.id
+    )
+    db.session.add(history_entry)
     db.session.commit()
     
     return jsonify({'success': True, 'message': 'Anomaly resolved successfully.'})
@@ -438,10 +507,20 @@ def get_report_details(report_id):
     for anomaly in report.anomalies:
         try:
             details_data = json.loads(anomaly.details) if anomaly.details else {}
-            # Important: Add the database ID and resolved status to the payload
             details_data['id'] = anomaly.id
-            details_data['resolved'] = anomaly.resolved
-            details_data['resolved_at'] = anomaly.resolved_at.isoformat() if anomaly.resolved_at else None
+            details_data['status'] = anomaly.status
+            
+            history_data = [
+                {
+                    "old_status": h.old_status,
+                    "new_status": h.new_status,
+                    "comment": h.comment,
+                    "user": h.user.username,
+                    "timestamp": h.timestamp.isoformat()
+                } 
+                for h in anomaly.history.order_by(AnomalyHistory.timestamp.asc())
+            ]
+            details_data['history'] = history_data
             processed_anomalies.append(details_data)
         except json.JSONDecodeError:
             continue
@@ -463,12 +542,20 @@ def get_report_details(report_id):
 
     # Calcular KPIs
     high_priority_list = ['VERY HIGH', 'HIGH']
+    total_anomalies = len(processed_anomalies)
+    resolved_anomalies = sum(1 for a in processed_anomalies if a.get('status') == 'Resolved')
+    
+    resolution_rate_text = 'N/A'
+    if total_anomalies > 0:
+        percentage = (resolved_anomalies / total_anomalies) * 100
+        resolution_rate_text = f"{resolved_anomalies} of {total_anomalies} ({percentage:.0f}%)"
+
     kpis = [
-        {'label': 'Total Anomalies', 'value': len(processed_anomalies)},
+        {'label': 'Total Anomalies', 'value': total_anomalies},
         {'label': 'Priority Alerts', 'value': sum(1 for a in processed_anomalies if a.get('priority') in high_priority_list)},
         {'label': 'Affected Locations', 'value': len(location_summary)},
         {'label': 'Main Issue', 'value': max(set(a['anomaly_type'] for a in processed_anomalies), key=lambda t: [a['anomaly_type'] for a in processed_anomalies].count(t)) if processed_anomalies else 'N/A'},
-        {'label': 'Avg. Resolution Time', 'value': 'N/A'} # KPI simulado
+        {'label': 'Resolution Rate', 'value': resolution_rate_text}
     ]
 
     return jsonify({
